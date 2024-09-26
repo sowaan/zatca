@@ -906,21 +906,21 @@ def error_Log():
 
 
 def attach_QR_Image(qrCodeB64,sales_invoice_doc):
-                    try:
-                        qr = pyqrcode.create(qrCodeB64)
-                        temp_file_path = "qr_code.png"
-                        qr_image=qr.png(temp_file_path, scale=5)
-                        file = frappe.get_doc({
-                            "doctype": "File",
-                            "file_name": f"QR_image_{sales_invoice_doc.name}.png",
-                            "attached_to_doctype": sales_invoice_doc.doctype,
-                            "attached_to_name": sales_invoice_doc.name,
-                            "content": open(temp_file_path, "rb").read()
-                           
-                        })
-                        file.save(ignore_permissions=True)
-                    except Exception as e:
-                        frappe.throw("error in qrcode from xml:  " + str(e) )
+    try:
+        qr = pyqrcode.create(qrCodeB64)
+        temp_file_path = "qr_code.png"
+        qr_image=qr.png(temp_file_path, scale=5)
+        file = frappe.get_doc({
+            "doctype": "File",
+            "file_name": f"QR_image_{sales_invoice_doc.name}.png",
+            "attached_to_doctype": sales_invoice_doc.doctype,
+            "attached_to_name": sales_invoice_doc.name,
+            "content": open(temp_file_path, "rb").read()
+            
+        })
+        file.save(ignore_permissions=True)
+    except Exception as e:
+        frappe.throw("error in qrcode from xml:  " + str(e) )
 
 
 def reporting_API(uuid1, encoded_hash, signed_xmlfile_name, invoice_number, sales_invoice_doc):
@@ -1173,7 +1173,7 @@ def zatca_Call(invoice_number, compliance_type="0", any_item_has_tax_template=Fa
         qrCodeB64 = base64.b64encode(qrCodeBuf).decode('utf-8')
         update_Qr_toXml(qrCodeB64,company_abbr)
         signed_xmlfile_name = structuring_signedxml()
-
+        
         if compliance_type == "0":
             if customer_doc.custom_b2c == 1:
                 reporting_API(uuid1, encoded_hash, signed_xmlfile_name, invoice_number, sales_invoice_doc)

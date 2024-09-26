@@ -1,20 +1,22 @@
 import os
 import frappe
-from datetime import datetime
-from fatoora import Fatoora
+import pyqrcode
+import base64 
+from zatca.zatca.sign_invoice import generate_tlv_xml, get_tlv_for_value
 
 @frappe.whitelist(allow_guest=True)
-def get_fatoora_qr(seller_name,tax_number,date,total,tax_amount):
-    fatoora_obj = Fatoora(
-        seller_name=seller_name,
-        tax_number=tax_number, # or "1234567891"
-        invoice_date=datetime.strptime(date, '%Y-%m-%d %H:%M'), # timestamp or datetime object, or string ISO 8601 Zulu format
-        total_amount=total, # or 100.0, 100.00, "100.0", "100.00"
-        tax_amount=tax_amount, # or 15.0, 15.00, "15.0", "15.00",
-    )
+def get_fatoora_qr(company):
+    company_abbr = frappe.db.get_value("Company", {"name": company}, "abbr")
+    tlv_data = generate_tlv_xml(company_abbr)
 
-    fatoora_obj.qrcode("qr_code.png")
-    
+    tagsBufsArray = []
+    for tag_num, tag_value in tlv_data.items():
+        tagsBufsArray.append(get_tlv_for_value(tag_num, tag_value))
+
+    qrCodeBuf = b"".join(tagsBufsArray)
+    qrCodeB64 = base64.b64encode(qrCodeBuf).decode('utf-8')
+    qr = pyqrcode.create(qrCodeB64)
+    qr.png('qr_code.png', scale=5)
     # file = frappe.get_doc("File", "5fd4cf4571")
     with open("qr_code.png", mode="rb") as f:
         frappe.response.filecontent = f.read()
