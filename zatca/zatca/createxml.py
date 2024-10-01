@@ -279,7 +279,7 @@ def get_pih_for_company(pih_data, company_name):
 
 # def additional_Reference(invoice):
 #             try:
-#                 settings = frappe.get_doc('Zatca ERPgulf Setting')
+#                 settings = frappe.get_doc('Zatca Setting')
 #                 cac_AdditionalDocumentReference2 = ET.SubElement(invoice, "cac:AdditionalDocumentReference")
 #                 cbc_ID_1_1 = ET.SubElement(cac_AdditionalDocumentReference2, "cbc:ID")
 #                 cbc_ID_1_1.text = "PIH"
