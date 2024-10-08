@@ -585,21 +585,22 @@ def extract_public_key_data(company_abbr):
 
 
 def get_tlv_for_value(tag_num, tag_value):
-                try:
-                    tag_num_buf = bytes([tag_num])
-                    if tag_value is None:
-                        frappe.throw(f"Error: Tag value for tag number {tag_num} is None")
-                    if isinstance(tag_value, str):
-                        if len(tag_value) < 256:
-                            tag_value_len_buf = bytes([len(tag_value)])
-                        else:
-                            tag_value_len_buf = bytes([0xFF, (len(tag_value) >> 8) & 0xFF, len(tag_value) & 0xFF])
-                        tag_value = tag_value.encode('utf-8')
-                    else:
-                        tag_value_len_buf = bytes([len(tag_value)])
-                    return tag_num_buf + tag_value_len_buf + tag_value
-                except Exception as e:
-                    frappe.throw(" error in getting the tlv data value: "+ str(e) )
+    try:
+        print(tag_num, tag_value, "tag values \n\n\n\n")
+        tag_num_buf = bytes([tag_num])
+        if tag_value is None:
+            frappe.throw(f"Error: Tag value for tag number {tag_num} is None")
+        if isinstance(tag_value, str):
+            if len(tag_value) < 256:
+                tag_value_len_buf = bytes([len(tag_value)])
+            else:
+                tag_value_len_buf = bytes([0xFF, (len(tag_value) >> 8) & 0xFF, len(tag_value) & 0xFF])
+            tag_value = tag_value.encode('utf-8')
+        else:
+            tag_value_len_buf = bytes([len(tag_value)])
+        return tag_num_buf + tag_value_len_buf + tag_value
+    except Exception as e:
+        frappe.throw(" error in getting the tlv data value: "+ str(e) )
 
 
 
