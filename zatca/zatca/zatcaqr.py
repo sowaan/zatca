@@ -3,6 +3,7 @@ import frappe
 import pyqrcode
 import base64
 from zatca.zatca.sign_invoice import get_tlv_for_value
+from werkzeug.wrappers import Response
 
 @frappe.whitelist(allow_guest=True)
 def get_fatoora_qr(company, tax_number, date, total, tax_amount):
@@ -17,11 +18,19 @@ def get_fatoora_qr(company, tax_number, date, total, tax_amount):
     qr.png('qr_code.png', scale=5)
     # file = frappe.get_doc("File", "5fd4cf4571")
     with open("qr_code.png", mode="rb") as f:
-        frappe.response.filecontent = f.read()
-        frappe.response.filename = "qr_code.png"
-        frappe.response.type = "download"
-        frappe.response.display_content_as = "attachment"
+        image_data = f.read()
+
+    # Remove the file after reading
+    os.remove("qr_code.png")
+
+    # Return the image data as an inline response
+    return Response(image_data, mimetype='image/png')
+        # frappe.response.filecontent = f.read()
+        # frappe.response.type = "image/png"
+        # frappe.response.filename = "qr_code.png"
+        # frappe.response.type = "download"
+        # frappe.response.display_content_as = "attachment"
 
         # now remove the generated QR Code file from server
-        os.remove("qr_code.png")
+        # os.remove("qr_code.png")
     
