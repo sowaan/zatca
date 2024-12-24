@@ -586,7 +586,6 @@ def extract_public_key_data(company_abbr):
 
 def get_tlv_for_value(tag_num, tag_value):
     try:
-        print(tag_num, tag_value, "tag values \n\n\n\n")
         tag_num_buf = bytes([tag_num])
         if tag_value is None:
             frappe.throw(f"Error: Tag value for tag number {tag_num} is None")
