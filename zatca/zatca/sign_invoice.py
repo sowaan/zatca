@@ -1344,61 +1344,59 @@ def zatca_Background(invoice_number):
 
 @frappe.whitelist(allow_guest=True)
 def zatca_Background_on_submit(doc, method=None):
-    zatca_setting = frappe.get_doc("Zatca Setting")
-    if zatca_setting.zatca_invoices_on_submission == 1:
-        try:
-            sales_invoice_doc = doc
-            invoice_number = sales_invoice_doc.name
+    try:
+        sales_invoice_doc = doc
+        invoice_number = sales_invoice_doc.name
 
-            # Ensure the Sales Invoice document is correctly loaded
-            sales_invoice_doc = frappe.get_doc("Sales Invoice", invoice_number)
+        # Ensure the Sales Invoice document is correctly loaded
+        sales_invoice_doc = frappe.get_doc("Sales Invoice", invoice_number)
 
-            # Retrieve the company abbreviation using the company name from the Sales Invoice
-            company_abbr = frappe.db.get_value("Company", {"name": sales_invoice_doc.company}, "abbr")
-            if not company_abbr:
-                frappe.throw(f"Company abbreviation for {sales_invoice_doc.company} not found.")
-            
-            any_item_has_tax_template = False
-
-            for item in sales_invoice_doc.items:
-                if item.item_tax_template:
-                    any_item_has_tax_template = True
-                    break
-            
-            if any_item_has_tax_template:
-                for item in sales_invoice_doc.items:
-                    if not item.item_tax_template:
-                        frappe.throw("If any one item has an Item Tax Template, all items must have an Item Tax Template.")
-
-            for item in sales_invoice_doc.items:
-                if item.item_tax_template:
-                    item_tax_template = frappe.get_doc('Item Tax Template', item.item_tax_template)
-                    zatca_tax_category = item_tax_template.custom_zatca_tax_category
-                    for tax in item_tax_template.taxes:
-                        tax_rate = float(tax.tax_rate)
-                        
-                        if f"{tax_rate:.2f}" not in ['5.00', '15.00'] and zatca_tax_category not in ["Zero Rated", "Exempted", "Services outside scope of tax / Not subject to VAT"]:
-                            frappe.throw("Zatca tax category should be 'Zero Rated', 'Exempted' or 'Services outside scope of tax / Not subject to VAT' for items with tax rate not equal to 5.00 or 15.00.")
-                        
-                        if f"{tax_rate:.2f}" == '15.00' and zatca_tax_category != "Standard":
-                            frappe.throw("Check the Zatca category code and enable it as standard.")
-
-            # Check if Zatca Invoice is enabled in the Company document
-            company_doc = frappe.get_doc('Company', {"abbr": company_abbr})
-            if company_doc.custom_zatca_invoice_enabled != 1:
-                frappe.throw("Zatca Invoice is not enabled in the Company settings, Please contact your system administrator")
-            
-            if not frappe.db.exists("Sales Invoice", invoice_number):
-                frappe.throw("Please save and submit the invoice before sending to Zatca:  " + str(invoice_number))
-            
-            if sales_invoice_doc.docstatus in [0, 2]:
-                frappe.throw("Please submit the invoice before sending to Zatca:  " + str(invoice_number))
-                
-            if sales_invoice_doc.custom_zatca_status in ["REPORTED", "CLEARED"]:
-                frappe.throw("Already submitted to Zakat and Tax Authority")
-            
+        # Retrieve the company abbreviation using the company name from the Sales Invoice
+        company_abbr = frappe.db.get_value("Company", {"name": sales_invoice_doc.company}, "abbr")
+        if not company_abbr:
+            frappe.throw(f"Company abbreviation for {sales_invoice_doc.company} not found.")
         
-            zatca_Call(invoice_number, "0", any_item_has_tax_template, company_abbr)
+        any_item_has_tax_template = False
+
+        for item in sales_invoice_doc.items:
+            if item.item_tax_template:
+                any_item_has_tax_template = True
+                break
+        
+        if any_item_has_tax_template:
+            for item in sales_invoice_doc.items:
+                if not item.item_tax_template:
+                    frappe.throw("If any one item has an Item Tax Template, all items must have an Item Tax Template.")
+
+        for item in sales_invoice_doc.items:
+            if item.item_tax_template:
+                item_tax_template = frappe.get_doc('Item Tax Template', item.item_tax_template)
+                zatca_tax_category = item_tax_template.custom_zatca_tax_category
+                for tax in item_tax_template.taxes:
+                    tax_rate = float(tax.tax_rate)
+                    
+                    if f"{tax_rate:.2f}" not in ['5.00', '15.00'] and zatca_tax_category not in ["Zero Rated", "Exempted", "Services outside scope of tax / Not subject to VAT"]:
+                        frappe.throw("Zatca tax category should be 'Zero Rated', 'Exempted' or 'Services outside scope of tax / Not subject to VAT' for items with tax rate not equal to 5.00 or 15.00.")
+                    
+                    if f"{tax_rate:.2f}" == '15.00' and zatca_tax_category != "Standard":
+                        frappe.throw("Check the Zatca category code and enable it as standard.")
+
+        # Check if Zatca Invoice is enabled in the Company document
+        company_doc = frappe.get_doc('Company', {"abbr": company_abbr})
+        if company_doc.custom_zatca_invoice_enabled != 1:
+            frappe.throw("Zatca Invoice is not enabled in the Company settings, Please contact your system administrator")
+        
+        if not frappe.db.exists("Sales Invoice", invoice_number):
+            frappe.throw("Please save and submit the invoice before sending to Zatca:  " + str(invoice_number))
+        
+        if sales_invoice_doc.docstatus in [0, 2]:
+            frappe.throw("Please submit the invoice before sending to Zatca:  " + str(invoice_number))
             
-        except Exception as e:
-            frappe.throw("Error in background call: " + str(e))
+        if sales_invoice_doc.custom_zatca_status in ["REPORTED", "CLEARED"]:
+            frappe.throw("Already submitted to Zakat and Tax Authority")
+        
+        if company_doc.custom_zatca_invoices_on_submission == 1:
+            zatca_Call(invoice_number, "0", any_item_has_tax_template, company_abbr)
+        
+    except Exception as e:
+        frappe.throw("Error in background call: " + str(e))
