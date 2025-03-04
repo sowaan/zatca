@@ -6,6 +6,7 @@
  "engine": "InnoDB",
  "field_order": [
   "company",
+  "zatca_invoices_on_submission",
   "column_break_mjfm",
   "abbr",
   "details_and_otp_section",
@@ -238,12 +239,18 @@
   {
    "fieldname": "column_break_mjfm",
    "fieldtype": "Column Break"
+  },
+  {
+   "default": "0",
+   "fieldname": "zatca_invoices_on_submission",
+   "fieldtype": "Check",
+   "label": "ZATCA Invoices On Submission"
   }
  ],
  "index_web_pages_for_search": 1,
  "issingle": 1,
  "links": [],
- "modified": "2024-12-24 14:20:36.800021",
+ "modified": "2025-03-04 08:50:23.669544",
  "modified_by": "Administrator",
  "module": "Zatca",
  "name": "Zatca Setting",
