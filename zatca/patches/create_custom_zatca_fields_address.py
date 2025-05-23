@@ -9,12 +9,22 @@ def execute():
                 "fieldtype": "Section Break",
                 "label": "ZATCA",
                 "insert_after": "links",
+                "collapsible": 1,
+                "collapsible_depends_on": "",
+            },
+            {
+                "fieldname": "fetch_from_above",
+                "fieldtype": "Check",
+                "label": "Fetch From Above",
+                "insert_after": "custom_zatca",
+                "default": "1",
+                "description": "If checked, below fields will Read Only."
             },
             {
                 "fieldname": "custom_zatca_address_line_1",
                 "fieldtype": "Data",
                 "label": "Zatca Address Line 1",
-                "insert_after": "custom_zatca",
+                "insert_after": "fetch_from_above",
             },
             {
                 "fieldname": "custom_zatca_address_line_2",
@@ -42,5 +52,6 @@ def execute():
             },
         ],
     }
+
 
     create_custom_fields(ADDRESS_CUSTOM_FIELDS, ignore_validate=True)

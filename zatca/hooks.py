@@ -232,12 +232,17 @@ doc_events = {
         "before_cancel": "zatca.zatca.validations.before_save",
         "after_insert": "zatca.zatca.validations.duplicating_invoice",
         "on_submit": "zatca.zatca.sign_invoice.zatca_Background_on_submit"
+    },
+    "Address": {
+        "before_save": "zatca.zatca.address.before_save"
     }
 }
+
 doctype_js = {
-    "Sales Invoice" : "public/js/our_sales_invoice.js" ,
-    "Company": "public/js/company.js"
-    }
+    "Sales Invoice" : "public/js/our_sales_invoice.js",
+    "Company": "public/js/company.js",
+    "Address": "public/js/address.js",
+}
 
 
 fixtures = [ {"dt": "Custom Field","filters": [["module", "=", "Zatca"]] }]
