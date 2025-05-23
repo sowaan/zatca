@@ -1,6 +1,6 @@
 import frappe
 
-def set_zatca_address_fields(doc, method):
+def before_save(doc, method):
     if hasattr(doc, "fetch_from_above"):
         if doc.fetch_from_above:
             if hasattr(doc, "custom_zatca_address_line_1"):

@@ -234,7 +234,7 @@ doc_events = {
         "on_submit": "zatca.zatca.sign_invoice.zatca_Background_on_submit"
     },
     "Address": {
-        "before_save": "zatca.zatca.set_address_fields.set_zatca_address_fields"
+        "before_save": "zatca.zatca.address.before_save"
     }
 }
 
