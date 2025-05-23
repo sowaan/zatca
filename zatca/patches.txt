@@ -1,7 +1,8 @@
 [post_model_sync]
 # Patches added in this section will be executed after doctypes are migrated
-zatca.patches.create_custom_zatca_fields
-zatca.patches.zatca_address_patch
+zatca.patches.create_custom_zatca_fields_address
+zatca.patches.set_zatca_address_fields_from_patch
+
 
 
 [pre_model_sync]
