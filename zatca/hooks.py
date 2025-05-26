@@ -68,7 +68,7 @@ app_license = "mit"
 # ------------
 
 # before_install = "zatca.install.before_install"
-# after_install = "zatca.install.after_install"
+after_install = "zatca.install.after_install"
 
 # Uninstallation
 # ------------
