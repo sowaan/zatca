@@ -68,12 +68,12 @@ app_license = "mit"
 # ------------
 
 # before_install = "zatca.install.before_install"
-# after_install = "zatca.install.after_install"
+after_install = "zatca.install.after_install"
 
 # Uninstallation
 # ------------
 
-# before_uninstall = "zatca.uninstall.before_uninstall"
+before_uninstall = "zatca.install.before_uninstall"
 # after_uninstall = "zatca.uninstall.after_uninstall"
 
 # Integration Setup
