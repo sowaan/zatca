@@ -1,5 +1,5 @@
 import frappe
-from frappe.custom.doctype.custom_field.custom_field import create_custom_fields
+# from frappe.custom.doctype.custom_field.custom_field import create_custom_fields
 
 
 ADDRESS_CUSTOM_FIELDS = {
@@ -59,33 +59,33 @@ ADDRESS_CUSTOM_FIELDS = {
 
 
 
-def set_address_fields():
-    try:
-        fields = {
-            "address_line1": "custom_zatca_address_line_1",
-            "address_line2": "custom_zatca_address_line_2",
-            "city": "custom_zatca_city",
-            "pincode": "custom_zatca_pincode",
-            "state": "custom_zatca_state"
-        }
+# def set_address_fields():
+#     try:
+#         fields = {
+#             "address_line1": "custom_zatca_address_line_1",
+#             "address_line2": "custom_zatca_address_line_2",
+#             "city": "custom_zatca_city",
+#             "pincode": "custom_zatca_pincode",
+#             "state": "custom_zatca_state"
+#         }
 
-        for source, target in fields.items():
-            if frappe.db.has_column("Address", source) and frappe.db.has_column("Address", target):
-                frappe.db.sql(f"""
-                    UPDATE `tabAddress`
-                    SET `{target}` = `{source}`
-                    WHERE `{source}` IS NOT NULL
-                """)
+#         for source, target in fields.items():
+#             if frappe.db.has_column("Address", source) and frappe.db.has_column("Address", target):
+#                 frappe.db.sql(f"""
+#                     UPDATE `tabAddress`
+#                     SET `{target}` = `{source}`
+#                     WHERE `{source}` IS NOT NULL
+#                 """)
 
-    except Exception:
-        frappe.log_error(frappe.get_traceback(), "ZATCA Address Patch Error")
-
-
+#     except Exception:
+#         frappe.log_error(frappe.get_traceback(), "ZATCA Address Patch Error")
 
 
-def after_install():
-    create_custom_fields(ADDRESS_CUSTOM_FIELDS, ignore_validate=True)
-    set_address_fields()
+
+
+# def after_install():
+#     create_custom_fields(ADDRESS_CUSTOM_FIELDS, ignore_validate=True)
+#     set_address_fields()
 
 
 
@@ -97,26 +97,39 @@ def before_uninstall():
 
 
 def delete_custom_fields(custom_fields):
-	"""
-	:param custom_fields: a dict like `{'Customer': [{fieldname: 'test', ...}]}`
-	"""
+    """
+    :param custom_fields: a dict like `{'Customer': [{'fieldname': 'test', ...}]}`
+    """
 
-	for doctypes, fields in custom_fields.items():
-		if isinstance(fields, dict):
-			# only one field
-			fields = [fields]
+    for doctypes, fields in custom_fields.items():
+        if isinstance(fields, dict):
+            # only one field
+            fields = [fields]
 
-		if isinstance(doctypes, str):
-			# only one doctype
-			doctypes = (doctypes,)
+        if isinstance(doctypes, str):
+            # only one doctype
+            doctypes = (doctypes,)
 
-		for doctype in doctypes:
-			frappe.db.delete(
-				"Custom Field",
-				{
-					"fieldname": ("in", [field["fieldname"] for field in fields]),
-					"dt": doctype,
-				},
-			)
+        for doctype in doctypes:
+            fieldnames_to_delete = []
 
-			frappe.clear_cache(doctype=doctype)
+            for field in fields:
+                fieldname = field.get("fieldname")
+                if not fieldname:
+                    continue
+
+                exists = frappe.db.exists("Custom Field", {"fieldname": fieldname, "dt": doctype})
+                if exists:
+                    fieldnames_to_delete.append(fieldname)
+
+            if fieldnames_to_delete:
+                frappe.db.delete(
+                    "Custom Field",
+                    {
+                        "fieldname": ("in", fieldnames_to_delete),
+                        "dt": doctype,
+                    },
+                )
+                frappe.clear_cache(doctype=doctype)
+
+

@@ -1,6 +1,7 @@
-from zatca.install import after_install
+# from zatca.install import after_install
 
 
 
 def execute():
-    after_install()
+    # after_install()
+    pass
