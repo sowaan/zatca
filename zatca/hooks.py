@@ -68,12 +68,12 @@ app_license = "mit"
 # ------------
 
 # before_install = "zatca.install.before_install"
-after_install = "zatca.install.after_install"
+# after_install = "zatca.install.after_install"
 
 # Uninstallation
 # ------------
 
-before_uninstall = "zatca.install.before_uninstall"
+# before_uninstall = "zatca.install.before_uninstall"
 # after_uninstall = "zatca.uninstall.after_uninstall"
 
 # Integration Setup
@@ -232,16 +232,17 @@ doc_events = {
         "before_cancel": "zatca.zatca.validations.before_save",
         "after_insert": "zatca.zatca.validations.duplicating_invoice",
         "on_submit": "zatca.zatca.sign_invoice.zatca_Background_on_submit"
-    },
-    "Address": {
-        "before_save": "zatca.zatca.address.before_save"
     }
+    # ,
+    # "Address": {
+    #     "before_save": "zatca.zatca.address.before_save"
+    # }
 }
 
 doctype_js = {
     "Sales Invoice" : "public/js/our_sales_invoice.js",
     "Company": "public/js/company.js",
-    "Address": "public/js/address.js",
+    # "Address": "public/js/address.js",
 }
 
 
