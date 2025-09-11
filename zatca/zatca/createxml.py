@@ -773,7 +773,8 @@ def tax_Data_with_template(invoice, sales_invoice_doc):
             cbc_TaxAmount_2 = ET.SubElement(cac_TaxSubtotal, "cbc:TaxAmount")
             cbc_TaxAmount_2.set("currencyID", sales_invoice_doc.currency)
             tax_amount_without_retention = round(abs(total_tax), 2)
-            cbc_TaxAmount_2.text = str(totals["tax_amount"])
+            tax_amount = round(totals["taxable_amount"]*(totals["tax_rate"]/100),2)
+            cbc_TaxAmount_2.text = str(tax_amount)
             #cbc_TaxAmount_2.text = str(round(tax_amount_without_retention, 2))
 
             cac_TaxCategory_1 = ET.SubElement(cac_TaxSubtotal, "cac:TaxCategory")
