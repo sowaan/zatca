@@ -467,7 +467,7 @@ def zatca_Background_fee_on_submit(doc, method=None):
             frappe.throw(f"Company abbreviation for {fee_collection_doc.company} not found.")
         
         # Retrieve company settings
-        company_doc = frappe.get_doc('Company', company_abbr)
+        company_doc = frappe.get_doc('Company', fee_collection_doc.company)
         
         # Check if Zatca Invoice is enabled
         if not hasattr(company_doc, 'custom_zatca_invoice_enabled') or company_doc.custom_zatca_invoice_enabled != 1:
