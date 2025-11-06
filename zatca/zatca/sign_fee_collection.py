@@ -122,7 +122,7 @@ def fee_customer_Data(invoice, fee_collection_doc):
                 cac_PartyIdentification_1 = ET.SubElement(cac_Party_2, "cac:PartyIdentification")
                 cbc_ID_4 = ET.SubElement(cac_PartyIdentification_1, "cbc:ID")
                 cbc_ID_4.set("schemeID", "CRN")
-                cbc_ID_4.text = data_source.ksa_vat_no
+                cbc_ID_4.text = data_source.iqama_no or data_source.ksa_vat_no
                 
                 cac_PostalAddress_1 = ET.SubElement(cac_Party_2, "cac:PostalAddress")
                 cbc_StreetName_1 = ET.SubElement(cac_PostalAddress_1, "cbc:StreetName")
