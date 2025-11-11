@@ -50,7 +50,7 @@ def fee_collection_data(invoice, fee_collection_number):
         if hasattr(fee_collection_doc, 'student_fee_details') and fee_collection_doc.student_fee_details:
             posting_date = fee_collection_doc.student_fee_details[0].posting_date
         else:
-            posting_date = datetime.now().date()
+            posting_date = fee_collection_doc.posting_date
         cbc_IssueDate.text = str(posting_date)
         
         cbc_IssueTime = ET.SubElement(invoice, "cbc:IssueTime")
