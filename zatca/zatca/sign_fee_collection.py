@@ -47,10 +47,7 @@ def fee_collection_data(invoice, fee_collection_number):
         
         cbc_IssueDate = ET.SubElement(invoice, "cbc:IssueDate")
         # Use posting_date from first fee detail if available
-        if hasattr(fee_collection_doc, 'student_fee_details') and fee_collection_doc.student_fee_details:
-            posting_date = fee_collection_doc.student_fee_details[0].posting_date
-        else:
-            posting_date = fee_collection_doc.posting_date
+        posting_date = fee_collection_doc.posting_date
         cbc_IssueDate.text = str(posting_date)
         
         cbc_IssueTime = ET.SubElement(invoice, "cbc:IssueTime")
@@ -175,10 +172,7 @@ def fee_delivery_And_PaymentMeans(invoice, fee_collection_doc, is_return):
     """Set delivery and payment means for fee collection"""
     try:
         # Use posting_date from first fee detail
-        if hasattr(fee_collection_doc, 'student_fee_details') and fee_collection_doc.student_fee_details:
-            due_date = fee_collection_doc.student_fee_details[0].due_date
-        else:
-            due_date = datetime.now().date()
+        due_date = fee_collection_doc.posting_date
         
         cac_Delivery = ET.SubElement(invoice, "cac:Delivery")
         cbc_ActualDeliveryDate = ET.SubElement(cac_Delivery, "cbc:ActualDeliveryDate")
