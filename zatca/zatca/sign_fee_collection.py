@@ -13,6 +13,7 @@ from zatca.zatca.createxml import (
     additional_Reference, company_Data, xml_structuring,
     invoice_Typecode_Compliance
 )
+from frappe.utils import flt
 from frappe.utils.data import get_time
 
 from zatca.zatca.sign_invoice import (
@@ -321,7 +322,7 @@ def fee_item_data(invoice, fee_collection_doc):
                             cbc_InvoicedQuantity.set("unitCode", "PCE")
                             cbc_InvoicedQuantity.text = "1"
                             
-                            amount = component.amount or 0
+                            amount = flt(component.amount) - flt(fees_doc.total_discount_amount) if hasattr(fees_doc, 'total_discount_amount')  else flt(component.amount)
                             item_tax = amount * (tax_rate / 100)
                             
                             cbc_LineExtensionAmount_1 = ET.SubElement(cac_InvoiceLine, "cbc:LineExtensionAmount")
