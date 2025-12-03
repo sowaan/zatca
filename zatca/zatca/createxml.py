@@ -825,7 +825,8 @@ def tax_Data_with_template(invoice, sales_invoice_doc):
         # cbc_AllowanceTotalAmount.text = str(sales_invoice_doc.base_change_amount)
         cbc_AllowanceTotalAmount = ET.SubElement(cac_LegalMonetaryTotal, "cbc:AllowanceTotalAmount")
         cbc_AllowanceTotalAmount.set("currencyID", sales_invoice_doc.currency)                
-        cbc_AllowanceTotalAmount.text = "{:.2f}".format(0)        cbc_PayableAmount = ET.SubElement(cac_LegalMonetaryTotal, "cbc:PayableAmount")
+        cbc_AllowanceTotalAmount.text = "{:.2f}".format(0)        
+        cbc_PayableAmount = ET.SubElement(cac_LegalMonetaryTotal, "cbc:PayableAmount")
         cbc_PayableAmount.set("currencyID", sales_invoice_doc.currency)
         cbc_PayableAmount.text = str(round(abs(sales_invoice_doc.net_total) + abs(tax_amount_without_retention), 2))
 
