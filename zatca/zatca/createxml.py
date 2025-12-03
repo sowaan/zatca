@@ -25,28 +25,23 @@ def get_sa_vat_number(value):
     return None
 
 
+def _format_amount(v):
+    try:
+        return "{:.2f}".format(Decimal(str(v or 0)))
+    except Exception:
+        return str(v or 0)
+
 def _is_change_as_allowance(si_doc, tolerance=Decimal("0.05")):
     try:
-        paid = Decimal(str(getattr(si_doc, "paid_amount", 0) or 0))
-        grand = Decimal(str(getattr(si_doc, "grand_total", 0) or 0))
-        allow_total_candidates = [
-            getattr(si_doc, "allowance_total_amount", None),
-            getattr(si_doc, "base_change_amount", None),
-            getattr(si_doc, "allowance_total", None),
-        ]
-        allow_total = None
-        for v in allow_total_candidates:
-            if v is not None:
-                allow_total = Decimal(str(v or 0))
-                break
-        if allow_total is None:
-            allow_total = Decimal("0")
-
-        if si_doc.get("allowance_charge") or si_doc.get("allowances") or si_doc.get("allowance_charges"):
+        if si_doc.get("allowance_charge"):
             return False
 
+        paid = Decimal(str(getattr(si_doc, "paid_amount", 0) or 0))
+        grand = Decimal(str(getattr(si_doc, "grand_total", 0) or 0))
+        change = Decimal(str(getattr(si_doc, "base_change_amount", 0) or 0))
+
         delta = (paid - grand).quantize(Decimal("0.01"))
-        diff = abs(delta - allow_total)
+        diff = abs(delta - change)
         if delta > 0 and diff <= tolerance:
             return True
     except (InvalidOperation, Exception):
@@ -1078,7 +1073,7 @@ def tax_Data(invoice,sales_invoice_doc):
             cbc_TaxAmount_SAR = ET.SubElement(cac_TaxTotal, "cbc:TaxAmount")
             cbc_TaxAmount_SAR.set("currencyID", "SAR") # SAR is as zatca requires tax amount in SAR
             tax_amount_without_retention_sar =  round(sales_invoice_doc.conversion_rate * abs(get_tax_total_from_items(sales_invoice_doc)),2)
-            cbc_TaxAmount_SAR.text = str(round( tax_amount_without_retention_sar,2))     # str( abs(sales_invoice_doc.base_total_taxes_and_charges))
+            cbc_TaxAmount_SAR.text = str(round( tax_amount_without_retention_sar,2))
         #end for foreign currency
         
         
@@ -1088,7 +1083,7 @@ def tax_Data(invoice,sales_invoice_doc):
             cbc_TaxAmount_SAR = ET.SubElement(cac_TaxTotal, "cbc:TaxAmount")
             cbc_TaxAmount_SAR.set("currencyID", "SAR") # SAR is as zatca requires tax amount in SAR
             tax_amount_without_retention_sar =  round(abs(get_tax_total_from_items(sales_invoice_doc)),2)
-            cbc_TaxAmount_SAR.text = str(round( tax_amount_without_retention_sar,2))     # str( abs(sales_invoice_doc.base_total_taxes_and_charges))
+            cbc_TaxAmount_SAR.text = str(round( tax_amount_without_retention_sar,2))
         #end for SAR currency
         
 
@@ -1097,7 +1092,7 @@ def tax_Data(invoice,sales_invoice_doc):
         cbc_TaxAmount = ET.SubElement(cac_TaxTotal, "cbc:TaxAmount")
         cbc_TaxAmount.set("currencyID", sales_invoice_doc.currency) # SAR is as zatca requires tax amount in SAR
         tax_amount_without_retention =  round(abs(get_tax_total_from_items(sales_invoice_doc)),2)
-        cbc_TaxAmount.text = str(round( tax_amount_without_retention,2))     # str( abs(sales_invoice_doc.base_total_taxes_and_charges))
+        cbc_TaxAmount.text = str(round( tax_amount_without_retention,2))
         cac_TaxSubtotal = ET.SubElement(cac_TaxTotal, "cac:TaxSubtotal")
         cbc_TaxableAmount = ET.SubElement(cac_TaxSubtotal, "cbc:TaxableAmount")
         cbc_TaxableAmount.set("currencyID", sales_invoice_doc.currency)
@@ -1105,7 +1100,7 @@ def tax_Data(invoice,sales_invoice_doc):
         cbc_TaxAmount_2 = ET.SubElement(cac_TaxSubtotal, "cbc:TaxAmount")
         cbc_TaxAmount_2.set("currencyID", sales_invoice_doc.currency)
         
-        cbc_TaxAmount_2.text = str(round( tax_amount_without_retention,2))# str(abs(sales_invoice_doc.base_total_taxes_and_charges))
+        cbc_TaxAmount_2.text = str(round( tax_amount_without_retention,2))
         cac_TaxCategory_1 = ET.SubElement(cac_TaxSubtotal, "cac:TaxCategory")
         cbc_ID_8 = ET.SubElement(cac_TaxCategory_1, "cbc:ID")
         if sales_invoice_doc.custom_zatca_tax_category == "Standard":
@@ -1117,7 +1112,6 @@ def tax_Data(invoice,sales_invoice_doc):
         elif sales_invoice_doc.custom_zatca_tax_category == "Services outside scope of tax / Not subject to VAT":
             cbc_ID_8.text = "O"
         cbc_Percent_1 = ET.SubElement(cac_TaxCategory_1, "cbc:Percent")
-        # cbc_Percent_1.text = str(sales_invoice_doc.taxes[0].rate)
         cbc_Percent_1.text = f"{float(sales_invoice_doc.taxes[0].rate):.2f}" 
         exemption_reason_map = get_exemption_reason_map()
         if sales_invoice_doc.custom_zatca_tax_category != "Standard":
@@ -1142,24 +1136,66 @@ def tax_Data(invoice,sales_invoice_doc):
         cbc_TaxInclusiveAmount.set("currencyID", sales_invoice_doc.currency)
         cbc_TaxInclusiveAmount.text = str(round(abs(sales_invoice_doc.net_total) + abs(tax_amount_without_retention),2))
 
+        allowance_rows = sales_invoice_doc.get("allowance_charge") or []
+
+        allowance_total = Decimal("0.00")
+        if allowance_rows:
+            for ar in allowance_rows:
+                amt = getattr(ar, "base_amount", None)
+                if amt is None:
+                    amt = getattr(ar, "amount", 0)
+                try:
+                    amt_dec = Decimal(str(amt or 0))
+                except Exception:
+                    amt_dec = Decimal("0.00")
+
+                allowance_total += abs(amt_dec)
+
+                cac_AllowanceCharge = ET.SubElement(invoice, "cac:AllowanceCharge")
+                cbc_ChargeIndicator = ET.SubElement(cac_AllowanceCharge, "cbc:ChargeIndicator")
+                cbc_ChargeIndicator.text = "false"
+                reason = getattr(ar, "reason", None) or getattr(ar, "allowance_description", None)
+                if reason:
+                    try:
+                        cbc_AllowanceChargeReasonCode = ET.SubElement(cac_AllowanceCharge, "cbc:AllowanceChargeReasonCode")
+                        cbc_AllowanceChargeReasonCode.text = str(reason)
+                    except Exception:
+                        pass
+                cbc_Amount = ET.SubElement(cac_AllowanceCharge, "cbc:Amount")
+                cbc_Amount.set("currencyID", sales_invoice_doc.currency)
+                cbc_Amount.text = _format_amount(amt_dec)
+
+                try:
+                    cac_TaxCategory = ET.SubElement(cac_AllowanceCharge, "cac:TaxCategory")
+                    cbc_ID = ET.SubElement(cac_TaxCategory, "cbc:ID")
+                    if getattr(sales_invoice_doc, "custom_zatca_tax_category", None):
+                        t = sales_invoice_doc.custom_zatca_tax_category
+                        cbc_ID.text = "S" if t == "Standard" else ("Z" if t == "Zero Rated" else ("E" if t == "Exempted" else "O"))
+                    else:
+                        cbc_ID.text = "S"
+                    cbc_Percent = ET.SubElement(cac_TaxCategory, "cbc:Percent")
+                    if sales_invoice_doc.taxes:
+                        cbc_Percent.text = f"{float(sales_invoice_doc.taxes[0].rate):.2f}"
+                    else:
+                        cbc_Percent.text = "0.00"
+                    cac_TaxScheme = ET.SubElement(cac_TaxCategory, "cac:TaxScheme")
+                    cbc_TaxID = ET.SubElement(cac_TaxScheme, "cbc:ID")
+                    cbc_TaxID.text = "VAT"
+                except Exception:
+                    pass
+
+        else:
+            if _is_change_as_allowance(sales_invoice_doc):
+                allowance_total = Decimal("0.00")
+            else:
+                try:
+                    allowance_total = Decimal(str(getattr(sales_invoice_doc, "base_change_amount", 0) or 0))
+                except Exception:
+                    allowance_total = Decimal("0.00")
+
         cbc_AllowanceTotalAmount = ET.SubElement(cac_LegalMonetaryTotal, "cbc:AllowanceTotalAmount")
         cbc_AllowanceTotalAmount.set("currencyID", sales_invoice_doc.currency)
-
-        allowance_value = None
-        if getattr(sales_invoice_doc, "allowance_total_amount", None) is not None:
-            allowance_value = getattr(sales_invoice_doc, "allowance_total_amount")
-        elif getattr(sales_invoice_doc, "base_change_amount", None) is not None:
-            allowance_value = getattr(sales_invoice_doc, "base_change_amount")
-        else:
-            allowance_value = 0
-
-        if _is_change_as_allowance(sales_invoice_doc):
-            cbc_AllowanceTotalAmount.text = "{:.2f}".format(0)
-        else:
-            try:
-                cbc_AllowanceTotalAmount.text = "{:.2f}".format(Decimal(str(allowance_value or 0)))
-            except Exception:
-                cbc_AllowanceTotalAmount.text = str(allowance_value or 0)
+        cbc_AllowanceTotalAmount.text = _format_amount(allowance_total)
 
         cbc_PayableAmount = ET.SubElement(cac_LegalMonetaryTotal, "cbc:PayableAmount")
         cbc_PayableAmount.set("currencyID", sales_invoice_doc.currency)
@@ -1168,6 +1204,7 @@ def tax_Data(invoice,sales_invoice_doc):
         
     except Exception as e:
         frappe.throw("error occured in tax data"+ str(e) )
+
 def tax_Data_with_template(invoice, sales_invoice_doc):
     try:
         total_tax = sum(single_item.net_amount * (frappe.get_doc('Item Tax Template', single_item.item_tax_template).taxes[0].tax_rate / 100)
@@ -1267,12 +1304,79 @@ def tax_Data_with_template(invoice, sales_invoice_doc):
         cbc_TaxInclusiveAmount = ET.SubElement(cac_LegalMonetaryTotal, "cbc:TaxInclusiveAmount")
         cbc_TaxInclusiveAmount.set("currencyID", sales_invoice_doc.currency)
         cbc_TaxInclusiveAmount.text = str(round(abs(sales_invoice_doc.net_total) + abs(tax_amount_without_retention), 2))
-        # cbc_AllowanceTotalAmount = ET.SubElement(cac_LegalMonetaryTotal, "cbc:AllowanceTotalAmount")
-        # cbc_AllowanceTotalAmount.set("currencyID", sales_invoice_doc.currency)
-        # cbc_AllowanceTotalAmount.text = str(sales_invoice_doc.base_change_amount)
+
+        allowance_rows = sales_invoice_doc.get("allowance_charge") or []
+
+        # If there are allowance rows, create cac:AllowanceCharge elements and sum their amounts
+        allowance_total = Decimal("0.00")
+        if allowance_rows:
+            for ar in allowance_rows:
+                # get numeric amount; try base_amount then amount
+                amt = getattr(ar, "base_amount", None)
+                if amt is None:
+                    amt = getattr(ar, "amount", 0)
+                try:
+                    amt_dec = Decimal(str(amt or 0))
+                except Exception:
+                    amt_dec = Decimal("0.00")
+
+                allowance_total += abs(amt_dec)
+
+                cac_AllowanceCharge = ET.SubElement(invoice, "cac:AllowanceCharge")
+                # AllowanceCharge means discount -> ChargeIndicator false
+                cbc_ChargeIndicator = ET.SubElement(cac_AllowanceCharge, "cbc:ChargeIndicator")
+                cbc_ChargeIndicator.text = "false"
+                # optional reason / code if present on child row
+                reason = getattr(ar, "reason", None) or getattr(ar, "allowance_description", None)
+                if reason:
+                    try:
+                        cbc_AllowanceChargeReasonCode = ET.SubElement(cac_AllowanceCharge, "cbc:AllowanceChargeReasonCode")
+                        cbc_AllowanceChargeReasonCode.text = str(reason)
+                    except Exception:
+                        pass
+                cbc_Amount = ET.SubElement(cac_AllowanceCharge, "cbc:Amount")
+                cbc_Amount.set("currencyID", sales_invoice_doc.currency)
+                cbc_Amount.text = _format_amount(amt_dec)
+
+                # Minimal TaxCategory inside allowance (ZATCA expects a TaxCategory block)
+                try:
+                    cac_TaxCategory = ET.SubElement(cac_AllowanceCharge, "cac:TaxCategory")
+                    cbc_ID = ET.SubElement(cac_TaxCategory, "cbc:ID")
+                    # try to mirror invoice tax category if available; fallback "S"
+                    if getattr(sales_invoice_doc, "custom_zatca_tax_category", None):
+                        t = sales_invoice_doc.custom_zatca_tax_category
+                        cbc_ID.text = "S" if t == "Standard" else ("Z" if t == "Zero Rated" else ("E" if t == "Exempted" else "O"))
+                    else:
+                        cbc_ID.text = "S"
+                    cbc_Percent = ET.SubElement(cac_TaxCategory, "cbc:Percent")
+                    # use first tax rate as default if present
+                    if sales_invoice_doc.taxes:
+                        cbc_Percent.text = f"{float(sales_invoice_doc.taxes[0].rate):.2f}"
+                    else:
+                        cbc_Percent.text = "0.00"
+                    cac_TaxScheme = ET.SubElement(cac_TaxCategory, "cac:TaxScheme")
+                    cbc_TaxID = ET.SubElement(cac_TaxScheme, "cbc:ID")
+                    cbc_TaxID.text = "VAT"
+                except Exception:
+                    pass
+
+        # If no allowance child rows — check for cash change situation
+        else:
+            # if base_change_amount looks like cash change (paid - grand), do NOT emit allowance, and set total to 0.00
+            if _is_change_as_allowance(sales_invoice_doc):
+                allowance_total = Decimal("0.00")
+            else:
+                # Use base_change_amount (if supplier really set an allowance total without rows)
+                try:
+                    allowance_total = Decimal(str(getattr(sales_invoice_doc, "base_change_amount", 0) or 0))
+                except Exception:
+                    allowance_total = Decimal("0.00")
+
+        # Now write cbc:AllowanceTotalAmount with the exact computed sum
         cbc_AllowanceTotalAmount = ET.SubElement(cac_LegalMonetaryTotal, "cbc:AllowanceTotalAmount")
-        cbc_AllowanceTotalAmount.set("currencyID", sales_invoice_doc.currency)                
-        cbc_AllowanceTotalAmount.text = "{:.2f}".format(0)
+        cbc_AllowanceTotalAmount.set("currencyID", sales_invoice_doc.currency)
+        cbc_AllowanceTotalAmount.text = _format_amount(allowance_total)
+
         cbc_PayableAmount = ET.SubElement(cac_LegalMonetaryTotal, "cbc:PayableAmount")
         cbc_PayableAmount.set("currencyID", sales_invoice_doc.currency)
         cbc_PayableAmount.text = str(round(abs(sales_invoice_doc.net_total) + abs(tax_amount_without_retention), 2))
