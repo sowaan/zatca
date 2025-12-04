@@ -232,6 +232,9 @@ doc_events = {
         "before_cancel": "zatca.zatca.validations.before_save",
         "after_insert": "zatca.zatca.validations.duplicating_invoice",
         "on_submit": "zatca.zatca.sign_invoice.zatca_Background_on_submit"
+    },
+    "Fee Collections": {
+        "on_submit": "zatca.zatca.sign_fee_collection.zatca_Background_fee_on_submit"
     }
     # ,
     # "Address": {
@@ -241,6 +244,7 @@ doc_events = {
 
 doctype_js = {
     "Sales Invoice" : "public/js/our_sales_invoice.js",
+    "Fee Collections": "public/js/fee_collection.js",
     "Company": "public/js/company.js",
     # "Address": "public/js/address.js",
 }

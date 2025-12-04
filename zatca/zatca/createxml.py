@@ -360,98 +360,98 @@ def additional_Reference(invoice, company_abbr):
 
 
 def company_Data(invoice,sales_invoice_doc):
-            try:
-                company_doc = frappe.get_doc("Company", sales_invoice_doc.company)
-                customer_doc= frappe.get_doc("Customer",sales_invoice_doc.customer)
-                cac_AccountingSupplierParty = ET.SubElement(invoice, "cac:AccountingSupplierParty")
-                cac_Party_1 = ET.SubElement(cac_AccountingSupplierParty, "cac:Party")
-                cac_PartyIdentification = ET.SubElement(cac_Party_1, "cac:PartyIdentification")
-                cbc_ID_2 = ET.SubElement(cac_PartyIdentification, "cbc:ID")
-                cbc_ID_2.set("schemeID", "CRN")
-                cbc_ID_2.text =company_doc.custom_company_registration # COmpany CR - Need to have a field in company doctype called company_registration 
-                address_list = frappe.get_list("Address", filters={"is_your_company_address": "1"}, fields=["address_line1", "address_line2","city","pincode","state"])
-                if len(address_list) == 0:
-                    frappe.throw("Zatca requires proper address. Please add your company address in address master")
-                for address in address_list:
-                    cac_PostalAddress = ET.SubElement(cac_Party_1, "cac:PostalAddress")
-                    cbc_StreetName = ET.SubElement(cac_PostalAddress, "cbc:StreetName")
-                    cbc_StreetName.text = address.address_line1
-                    cbc_BuildingNumber = ET.SubElement(cac_PostalAddress, "cbc:BuildingNumber")
-                    cbc_BuildingNumber.text = "6819"
-                    cbc_PlotIdentification = ET.SubElement(cac_PostalAddress, "cbc:PlotIdentification")
-                    cbc_PlotIdentification.text =  address.address_line1
-                    cbc_CitySubdivisionName = ET.SubElement(cac_PostalAddress, "cbc:CitySubdivisionName")
-                    cbc_CitySubdivisionName.text = address.address_line2
-                    cbc_CityName = ET.SubElement(cac_PostalAddress, "cbc:CityName")
-                    cbc_CityName.text = address.city
-                    cbc_PostalZone = ET.SubElement(cac_PostalAddress, "cbc:PostalZone")
-                    cbc_PostalZone.text = address.pincode
-                    cbc_CountrySubentity = ET.SubElement(cac_PostalAddress, "cbc:CountrySubentity")
-                    cbc_CountrySubentity.text = address.state
-                    break
-                cac_Country = ET.SubElement(cac_PostalAddress, "cac:Country")
-                cbc_IdentificationCode = ET.SubElement(cac_Country, "cbc:IdentificationCode")
-                cbc_IdentificationCode.text = "SA"
-                cac_PartyTaxScheme = ET.SubElement(cac_Party_1, "cac:PartyTaxScheme")
-                cbc_CompanyID = ET.SubElement(cac_PartyTaxScheme, "cbc:CompanyID")
-                cbc_CompanyID.text = company_doc.tax_id
-                cac_TaxScheme = ET.SubElement(cac_PartyTaxScheme, "cac:TaxScheme")
-                cbc_ID_3 = ET.SubElement(cac_TaxScheme, "cbc:ID")
-                cbc_ID_3.text = "VAT"
-                cac_PartyLegalEntity = ET.SubElement(cac_Party_1, "cac:PartyLegalEntity")
-                cbc_RegistrationName = ET.SubElement(cac_PartyLegalEntity, "cbc:RegistrationName")
-                cbc_RegistrationName.text = sales_invoice_doc.company
-                # frappe.throw(f"Registration Name set to: {cbc_RegistrationName.text}")
-                return invoice
-            except Exception as e:
-                    frappe.throw("error occured in company data"+ str(e) )
+    try:
+        company_doc = frappe.get_doc("Company", sales_invoice_doc.company)
+        # customer_doc= frappe.get_doc("Customer",sales_invoice_doc.customer)
+        cac_AccountingSupplierParty = ET.SubElement(invoice, "cac:AccountingSupplierParty")
+        cac_Party_1 = ET.SubElement(cac_AccountingSupplierParty, "cac:Party")
+        cac_PartyIdentification = ET.SubElement(cac_Party_1, "cac:PartyIdentification")
+        cbc_ID_2 = ET.SubElement(cac_PartyIdentification, "cbc:ID")
+        cbc_ID_2.set("schemeID", "CRN")
+        cbc_ID_2.text =company_doc.custom_company_registration # COmpany CR - Need to have a field in company doctype called company_registration 
+        address_list = frappe.get_list("Address", filters={"is_your_company_address": "1"}, fields=["address_line1", "address_line2","city","pincode","state"])
+        if len(address_list) == 0:
+            frappe.throw("Zatca requires proper address. Please add your company address in address master")
+        for address in address_list:
+            cac_PostalAddress = ET.SubElement(cac_Party_1, "cac:PostalAddress")
+            cbc_StreetName = ET.SubElement(cac_PostalAddress, "cbc:StreetName")
+            cbc_StreetName.text = address.address_line1
+            cbc_BuildingNumber = ET.SubElement(cac_PostalAddress, "cbc:BuildingNumber")
+            cbc_BuildingNumber.text = "6819"
+            cbc_PlotIdentification = ET.SubElement(cac_PostalAddress, "cbc:PlotIdentification")
+            cbc_PlotIdentification.text =  address.address_line1
+            cbc_CitySubdivisionName = ET.SubElement(cac_PostalAddress, "cbc:CitySubdivisionName")
+            cbc_CitySubdivisionName.text = address.address_line2
+            cbc_CityName = ET.SubElement(cac_PostalAddress, "cbc:CityName")
+            cbc_CityName.text = address.city
+            cbc_PostalZone = ET.SubElement(cac_PostalAddress, "cbc:PostalZone")
+            cbc_PostalZone.text = address.pincode
+            cbc_CountrySubentity = ET.SubElement(cac_PostalAddress, "cbc:CountrySubentity")
+            cbc_CountrySubentity.text = address.state
+            break
+        cac_Country = ET.SubElement(cac_PostalAddress, "cac:Country")
+        cbc_IdentificationCode = ET.SubElement(cac_Country, "cbc:IdentificationCode")
+        cbc_IdentificationCode.text = "SA"
+        cac_PartyTaxScheme = ET.SubElement(cac_Party_1, "cac:PartyTaxScheme")
+        cbc_CompanyID = ET.SubElement(cac_PartyTaxScheme, "cbc:CompanyID")
+        cbc_CompanyID.text = company_doc.tax_id
+        cac_TaxScheme = ET.SubElement(cac_PartyTaxScheme, "cac:TaxScheme")
+        cbc_ID_3 = ET.SubElement(cac_TaxScheme, "cbc:ID")
+        cbc_ID_3.text = "VAT"
+        cac_PartyLegalEntity = ET.SubElement(cac_Party_1, "cac:PartyLegalEntity")
+        cbc_RegistrationName = ET.SubElement(cac_PartyLegalEntity, "cbc:RegistrationName")
+        cbc_RegistrationName.text = sales_invoice_doc.company
+        # frappe.throw(f"Registration Name set to: {cbc_RegistrationName.text}")
+        return invoice
+    except Exception as e:
+            frappe.throw("error occured in company data"+ str(e) )
 
 def customer_Data(invoice,sales_invoice_doc):
-            try:
-                customer_doc= frappe.get_doc("Customer",sales_invoice_doc.customer)
-                # frappe.throw(str(customer_doc))
-                cac_AccountingCustomerParty = ET.SubElement(invoice, "cac:AccountingCustomerParty")
-                cac_Party_2 = ET.SubElement(cac_AccountingCustomerParty, "cac:Party")
-                cac_PartyIdentification_1 = ET.SubElement(cac_Party_2, "cac:PartyIdentification")
-                cbc_ID_4 = ET.SubElement(cac_PartyIdentification_1, "cbc:ID")
-                cbc_ID_4.set("schemeID", "CRN")
-                cbc_ID_4.text =customer_doc.tax_id
-                # frappe.throw(f"Customer Tax ID set to: {cbc_ID_4.text}")
-                if int(frappe.__version__.split('.')[0]) == 13:
-                    address = frappe.get_doc("Address", sales_invoice_doc.customer_address)    
-                else:
-                    address = frappe.get_doc("Address", customer_doc.customer_primary_address)
-                cac_PostalAddress_1 = ET.SubElement(cac_Party_2, "cac:PostalAddress")
-                cbc_StreetName_1 = ET.SubElement(cac_PostalAddress_1, "cbc:StreetName")
-                cbc_StreetName_1.text = address.address_line1
-                cbc_BuildingNumber_1 = ET.SubElement(cac_PostalAddress_1, "cbc:BuildingNumber")
-                cbc_BuildingNumber_1.text = address.address_line2
-                cbc_PlotIdentification_1 = ET.SubElement(cac_PostalAddress_1, "cbc:PlotIdentification")
-                if hasattr(address, 'po_box'):
-                    cbc_PlotIdentification_1.text = address.po_box
-                else:
-                    cbc_PlotIdentification_1.text = address.address_line1
-                cbc_CitySubdivisionName_1 = ET.SubElement(cac_PostalAddress_1, "cbc:CitySubdivisionName")
-                cbc_CitySubdivisionName_1.text = address.address_line2
-                cbc_CityName_1 = ET.SubElement(cac_PostalAddress_1, "cbc:CityName")
-                cbc_CityName_1.text = address.city
-                cbc_PostalZone_1 = ET.SubElement(cac_PostalAddress_1, "cbc:PostalZone")
-                cbc_PostalZone_1.text =address.pincode
-                cbc_CountrySubentity_1 = ET.SubElement(cac_PostalAddress_1, "cbc:CountrySubentity")
-                cbc_CountrySubentity_1.text =address.state
-                cac_Country_1 = ET.SubElement(cac_PostalAddress_1, "cac:Country")
-                cbc_IdentificationCode_1 = ET.SubElement(cac_Country_1, "cbc:IdentificationCode")
-                cbc_IdentificationCode_1.text = "SA" 
-                cac_PartyTaxScheme_1 = ET.SubElement(cac_Party_2, "cac:PartyTaxScheme")
-                cac_TaxScheme_1 = ET.SubElement(cac_PartyTaxScheme_1, "cac:TaxScheme")
-                cbc_ID_5 = ET.SubElement(cac_TaxScheme_1, "cbc:ID")
-                cbc_ID_5.text = "VAT"
-                cac_PartyLegalEntity_1 = ET.SubElement(cac_Party_2, "cac:PartyLegalEntity")
-                cbc_RegistrationName_1 = ET.SubElement(cac_PartyLegalEntity_1, "cbc:RegistrationName")
-                cbc_RegistrationName_1.text = sales_invoice_doc.customer
-                return invoice
-            except Exception as e:
-                    frappe.throw("error occured in customer data"+ str(e) )
+    try:
+        customer_doc= frappe.get_doc("Customer",sales_invoice_doc.customer)
+        # frappe.throw(str(customer_doc))
+        cac_AccountingCustomerParty = ET.SubElement(invoice, "cac:AccountingCustomerParty")
+        cac_Party_2 = ET.SubElement(cac_AccountingCustomerParty, "cac:Party")
+        cac_PartyIdentification_1 = ET.SubElement(cac_Party_2, "cac:PartyIdentification")
+        cbc_ID_4 = ET.SubElement(cac_PartyIdentification_1, "cbc:ID")
+        cbc_ID_4.set("schemeID", "CRN")
+        cbc_ID_4.text =customer_doc.tax_id
+        # frappe.throw(f"Customer Tax ID set to: {cbc_ID_4.text}")
+        if int(frappe.__version__.split('.')[0]) == 13:
+            address = frappe.get_doc("Address", sales_invoice_doc.customer_address)    
+        else:
+            address = frappe.get_doc("Address", customer_doc.customer_primary_address)
+        cac_PostalAddress_1 = ET.SubElement(cac_Party_2, "cac:PostalAddress")
+        cbc_StreetName_1 = ET.SubElement(cac_PostalAddress_1, "cbc:StreetName")
+        cbc_StreetName_1.text = address.address_line1
+        cbc_BuildingNumber_1 = ET.SubElement(cac_PostalAddress_1, "cbc:BuildingNumber")
+        cbc_BuildingNumber_1.text = address.address_line2
+        cbc_PlotIdentification_1 = ET.SubElement(cac_PostalAddress_1, "cbc:PlotIdentification")
+        if hasattr(address, 'po_box'):
+            cbc_PlotIdentification_1.text = address.po_box
+        else:
+            cbc_PlotIdentification_1.text = address.address_line1
+        cbc_CitySubdivisionName_1 = ET.SubElement(cac_PostalAddress_1, "cbc:CitySubdivisionName")
+        cbc_CitySubdivisionName_1.text = address.address_line2
+        cbc_CityName_1 = ET.SubElement(cac_PostalAddress_1, "cbc:CityName")
+        cbc_CityName_1.text = address.city
+        cbc_PostalZone_1 = ET.SubElement(cac_PostalAddress_1, "cbc:PostalZone")
+        cbc_PostalZone_1.text =address.pincode
+        cbc_CountrySubentity_1 = ET.SubElement(cac_PostalAddress_1, "cbc:CountrySubentity")
+        cbc_CountrySubentity_1.text =address.state
+        cac_Country_1 = ET.SubElement(cac_PostalAddress_1, "cac:Country")
+        cbc_IdentificationCode_1 = ET.SubElement(cac_Country_1, "cbc:IdentificationCode")
+        cbc_IdentificationCode_1.text = "SA" 
+        cac_PartyTaxScheme_1 = ET.SubElement(cac_Party_2, "cac:PartyTaxScheme")
+        cac_TaxScheme_1 = ET.SubElement(cac_PartyTaxScheme_1, "cac:TaxScheme")
+        cbc_ID_5 = ET.SubElement(cac_TaxScheme_1, "cbc:ID")
+        cbc_ID_5.text = "VAT"
+        cac_PartyLegalEntity_1 = ET.SubElement(cac_Party_2, "cac:PartyLegalEntity")
+        cbc_RegistrationName_1 = ET.SubElement(cac_PartyLegalEntity_1, "cbc:RegistrationName")
+        cbc_RegistrationName_1.text = sales_invoice_doc.customer
+        return invoice
+    except Exception as e:
+        frappe.throw("error occured in customer data"+ str(e) )
 
 def delivery_And_PaymentMeans(invoice,sales_invoice_doc, is_return):
             try:
