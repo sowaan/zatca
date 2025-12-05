@@ -904,6 +904,45 @@ def error_Log():
 
 
 
+def new_attach_QR_Image(qrCodeB64, sales_invoice_doc):
+    try:
+        # Create QR PNG
+        qr = pyqrcode.create(qrCodeB64)
+        temp_file_path = "qr_code.png"
+        qr.png(temp_file_path, scale=5)
+
+        file_name = f"QR_image_{sales_invoice_doc.name}.png"
+
+        # 🔍 Check if a QR image already exists for this invoice
+        existing_file = frappe.db.get_value(
+            "File",
+            {
+                "attached_to_doctype": sales_invoice_doc.doctype,
+                "attached_to_name": sales_invoice_doc.name,
+                "file_name": file_name
+            },
+            "name"
+        )
+
+        # Remove existing file (to avoid duplicates)
+        if existing_file:
+            frappe.delete_doc("File", existing_file, ignore_permissions=True)
+
+        # Create new file
+        with open(temp_file_path, "rb") as f:
+            content = f.read()
+
+        new_file = frappe.get_doc({
+            "doctype": "File",
+            "file_name": file_name,
+            "attached_to_doctype": sales_invoice_doc.doctype,
+            "attached_to_name": sales_invoice_doc.name,
+            "content": content
+        })
+        new_file.save(ignore_permissions=True)
+
+    except Exception as e:
+        frappe.throw("Error generating QR code: " + str(e))
 
 def attach_QR_Image(qrCodeB64,sales_invoice_doc):
     try:
@@ -1189,7 +1228,7 @@ def new_zatca_Call(
         signed_xmlfile_name = structuring_signedxml()
 
         # ✅ Always attach QR to invoice, even if not submitting
-        attach_QR_Image(qrCodeB64, sales_invoice_doc)
+        new_attach_QR_Image(qrCodeB64, sales_invoice_doc)
 
         # ✅ Only this part is controlled by submit_to_zatca
         if submit_to_zatca:
@@ -1432,7 +1471,7 @@ def zatca_Background(invoice_number):
         if settings.custom_zatca_invoice_enabled != 1:
             frappe.throw("Zatca Invoice is not enabled in Company Settings, Please contact your system administrator")
 
-        zatca_Call(invoice_number, "0", any_item_has_tax_template, company_abbr)
+        new_zatca_Call(invoice_number, "0", any_item_has_tax_template, company_abbr, submit_to_zatca=True)
 
     except Exception as e:
         frappe.throw("Error in background call: " + str(e))
