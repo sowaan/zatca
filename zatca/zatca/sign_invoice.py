@@ -1131,7 +1131,7 @@ def zatca_Call(invoice_number, compliance_type="0", any_item_has_tax_template=Fa
             invoice = invoice_Typecode_Compliance(invoice, compliance_type)
 
         invoice = doc_Reference(invoice, sales_invoice_doc, invoice_number)
-        invoice = additional_Reference(invoice, company_abbr)
+        invoice = additional_Reference(invoice, company_abbr, sales_invoice_doc)
         invoice = company_Data(invoice, sales_invoice_doc)
         invoice = customer_Data(invoice, sales_invoice_doc)
         invoice = delivery_And_PaymentMeans(invoice, sales_invoice_doc, sales_invoice_doc.is_return)
@@ -1238,7 +1238,7 @@ def zatca_Call_compliance(invoice_number, company_abbr, compliance_type="0", any
         customer_doc = frappe.get_doc("Customer", sales_invoice_doc.customer)
         invoice = invoice_Typecode_Compliance(invoice, compliance_type)
         invoice = doc_Reference_compliance(invoice, sales_invoice_doc, invoice_number, compliance_type)
-        invoice = additional_Reference(invoice,company_abbr)
+        invoice = additional_Reference(invoice,company_abbr, sales_invoice_doc)
         invoice = company_Data(invoice, sales_invoice_doc)
         invoice = customer_Data(invoice, sales_invoice_doc)
         invoice = delivery_And_PaymentMeans_for_Compliance(invoice, sales_invoice_doc, compliance_type)
