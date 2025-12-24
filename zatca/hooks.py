@@ -252,4 +252,3 @@ doctype_js = {
 
 fixtures = [ {"dt": "Custom Field","filters": [["module", "=", "Zatca"]] }]
 
-
