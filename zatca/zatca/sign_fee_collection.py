@@ -1,17 +1,18 @@
 import frappe
 import base64
-import hashlib
-import pyqrcode
 import requests
 import uuid
 import re
-from lxml import etree
 from datetime import datetime
 import xml.etree.ElementTree as ET
 from zatca.zatca.createxml import (
-    xml_tags, invoice_Typecode_Simplified, invoice_Typecode_Standard,
-    additional_Reference, company_Data, xml_structuring,
-    invoice_Typecode_Compliance
+    xml_tags, 
+    invoice_typecode_simplified, 
+    invoice_typecode_standard,
+    additional_reference, 
+    company_data, 
+    xml_structuring,
+    invoice_typecode_compliance
 )
 from frappe.utils import flt
 from frappe.utils.data import get_time
@@ -24,7 +25,7 @@ from zatca.zatca.sign_invoice import (
     xml_base64_Decode, get_API_url, attach_QR_Image, success_Log, error_Log
 )
 
-def get_Issue_Time(fee_collection_doc):
+def get_issue_time(fee_collection_doc):
     """Get posting time in required format"""
     time = get_time(fee_collection_doc.posting_time) if hasattr(fee_collection_doc, 'posting_time') else datetime.now().time()
     issue_time = time.strftime("%H:%M:%S")
@@ -52,14 +53,14 @@ def fee_collection_data(invoice, fee_collection_number):
         cbc_IssueDate.text = str(posting_date)
         
         cbc_IssueTime = ET.SubElement(invoice, "cbc:IssueTime")
-        cbc_IssueTime.text = get_Issue_Time(fee_collection_doc)
+        cbc_IssueTime.text = get_issue_time(fee_collection_doc)
         
         return invoice, uuid1, fee_collection_doc
     except Exception as e:
         frappe.throw(f"Error in extracting fee collection data: {str(e)}")
 
 
-def fee_doc_Reference(invoice, fee_collection_doc, fee_collection_number):
+def fee_doc_reference(invoice, fee_collection_doc, fee_collection_number):
     """Create document reference for fee collection"""
     try:
         # Document Currency Code
@@ -506,15 +507,18 @@ def zatca_Call_fee_collection(fee_collection_number, compliance_type="0", compan
         
         if compliance_type == "0":
             if is_b2c:
-                invoice = invoice_Typecode_Simplified(invoice, fee_collection_doc)
+                invoice = invoice_typecode_simplified(invoice, fee_collection_doc)
             else:
-                invoice = invoice_Typecode_Standard(invoice, fee_collection_doc)
+                invoice = invoice_typecode_standard(invoice, fee_collection_doc)
         else:
-            invoice = invoice_Typecode_Compliance(invoice, compliance_type)
+            invoice = invoice_typecode_compliance(invoice, compliance_type)
         
-        invoice = fee_doc_Reference(invoice, fee_collection_doc, fee_collection_number)
-        invoice = additional_Reference(invoice, company_abbr)
-        invoice = company_Data(invoice, fee_collection_doc)
+        invoice = fee_doc_reference(invoice, fee_collection_doc, fee_collection_number)
+        # Ensure custom_zatca_pos_name is safely accessible
+        if not hasattr(fee_collection_doc, 'custom_zatca_pos_name'):
+            fee_collection_doc.custom_zatca_pos_name = None
+        invoice = additional_reference(invoice, company_abbr, fee_collection_doc)
+        invoice = company_data(invoice, fee_collection_doc)
         invoice = fee_customer_Data(invoice, fee_collection_doc)
         invoice = fee_delivery_And_PaymentMeans(invoice, fee_collection_doc, fee_collection_doc.is_return)
         invoice = fee_tax_Data(invoice, fee_collection_doc)
