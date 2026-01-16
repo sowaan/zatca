@@ -250,5 +250,15 @@ doctype_js = {
 }
 
 
-fixtures = [ {"dt": "Custom Field","filters": [["module", "=", "Zatca"]] }]
+# fixtures = [ {"dt": "Custom Field","filters": [["module", "=", "Zatca"]] }]
 
+
+fixtures = [
+    {
+        "doctype": "Custom Field",
+        "filters": {
+            "module": "Zatca",
+            "dt": ["!=", "Fee Collections"]
+        }
+    }
+]
