@@ -31,7 +31,8 @@ def get_api_url(company_abbr, base_url):
 def wizard_button(company_abbr, button, pos=0, machine=None):
     """Compliance check for ZATCA based on file type and company abbreviation."""
     try:
-        app_path = frappe.get_app_path("zatca/invoice_xml_files")
+        app_path = frappe.get_app_path("zatca", "invoice_xml_files")
+
         # Map buttons to their corresponding XML file paths
         button_file_mapping = {
             "simplified_invoice_button": app_path + "/simplifeid invoice.xml",
@@ -134,11 +135,42 @@ def wizard_button(company_abbr, button, pos=0, machine=None):
             timeout=300,
         )
 
-        # Handle response
-        if response.status_code != 200:
-            frappe.throw(_(f"Error from ZATCA API: {response.text}"))
+        # frappe.log_error(
+        #     "Response From ZATCA",
+        #     f"Status: {response.status_code}\nBody: {response.text}",
+        # )
 
-        return response.json()
+        # Accept both 200 and 202
+        if response.status_code not in (200, 202):
+            frappe.throw(_("ZATCA HTTP Error: {0}").format(response.text))
+
+        result = response.json()
+
+        validation = result.get("validationResults", {})
+        errors = validation.get("errorMessages", [])
+        warnings = validation.get("warningMessages", [])
+
+        # ❌ Real failure only if errors exist
+        if errors:
+            frappe.throw(
+                _("ZATCA Validation Failed:\n{0}")
+                .format("\n".join(e.get("message") for e in errors))
+            )
+
+        # ⚠ Log warnings but do not fail
+        # if warnings:
+        #     frappe.log_error(
+        #         "ZATCA Warnings",
+        #         "\n".join(w.get("message") for w in warnings),
+        #     )
+
+        # ✅ Return clean response for JS
+        return {
+            "status": validation.get("status"),
+            "reportingStatus": result.get("reportingStatus"),
+            "clearanceStatus": result.get("clearanceStatus"),
+            "warnings": warnings,
+        }
 
     except Exception as e:
         frappe.throw(_(f"Error in wizard_button: {str(e)}"))

@@ -225,7 +225,7 @@ def create_csr(zatca_doc, portal_type, company_abbr, csr_config_string=None):
         parsed_csr_config = ""
         
         if csr_config_string:
-            frappe.log_error ("csr_config_string value:", f"this is: {csr_config_string}")
+            
             parsed_csr_config = parse_csr_config(csr_config_string)
 
             # Persist ONCE so all other functions work
@@ -340,6 +340,7 @@ def create_csr(zatca_doc, portal_type, company_abbr, csr_config_string=None):
         mycsr = csr.public_bytes(serialization.Encoding.PEM)
         base64csr = base64.b64encode(mycsr)
         encoded_string = base64csr.decode("utf-8")
+        frappe.log_error("Encoded String", f"encoded string: {encoded_string}")
         if doc.doctype == "ZATCA Multiple Setting":
             multiple_setting_doc = frappe.get_doc("ZATCA Multiple Setting", doc.name)
             multiple_setting_doc.custom_csr_data = encoded_string.strip()
@@ -452,7 +453,10 @@ def create_csid(zatca_doc, company_abbr):
             frappe.throw(_("Error: OTP is not valid. " + response.text))
         if response.status_code != 200:
             frappe.throw(_("Error: Issue with Certificate or OTP. " + response.text))
-        frappe.msgprint(_(str(response.text)))
+        
+        # frappe.msgprint(_(str(response.text)))
+        frappe.log_error("Response From ZATCA", f"Status: {response.status_code}\nBody: {response.text}")
+
         data = json.loads(response.text)
 
         concatenated_value = data["binarySecurityToken"] + ":" + data["secret"]
