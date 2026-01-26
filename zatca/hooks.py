@@ -13,6 +13,19 @@ app_license = "mit"
 # app_include_css = "/assets/zatca/css/zatca.css"
 # app_include_js = "/assets/zatca/js/zatca.js"
 
+
+# app_include_css = "/assets/zatca_wizard/css/zatca_wizard.css"
+# app_include_js = "/assets/zatca_wizard/js/zatca_wizard.js"
+# app_include_js = [
+#     "public/js/setup_wizard.js"
+# ]
+# setup_wizard_js = "public/js/zatca_setup_wizard.js"
+# app_include_js = [
+#     "/assets/zatca_wizard/js/after_setup_redirect.js"
+# ]
+
+# setup_wizard_complete = "zatca_wizard.utils.setup.setup_wizard_save_zatca_info"
+
 # include js, css files in header of web template
 # web_include_css = "/assets/zatca/css/zatca.css"
 # web_include_js = "/assets/zatca/js/zatca.js"
