@@ -340,7 +340,7 @@ def create_csr(zatca_doc, portal_type, company_abbr, csr_config_string=None):
         mycsr = csr.public_bytes(serialization.Encoding.PEM)
         base64csr = base64.b64encode(mycsr)
         encoded_string = base64csr.decode("utf-8")
-        frappe.log_error("Encoded String", f"encoded string: {encoded_string}")
+        # frappe.log_error("Encoded String", f"encoded string: {encoded_string}")
         if doc.doctype == "ZATCA Multiple Setting":
             multiple_setting_doc = frappe.get_doc("ZATCA Multiple Setting", doc.name)
             multiple_setting_doc.custom_csr_data = encoded_string.strip()
@@ -455,7 +455,7 @@ def create_csid(zatca_doc, company_abbr):
             frappe.throw(_("Error: Issue with Certificate or OTP. " + response.text))
         
         # frappe.msgprint(_(str(response.text)))
-        frappe.log_error("Response From ZATCA", f"Status: {response.status_code}\nBody: {response.text}")
+        # frappe.log_error("Response From ZATCA", f"Status: {response.status_code}\nBody: {response.text}")
 
         data = json.loads(response.text)
 
@@ -1382,48 +1382,38 @@ def compliance_api_call(
 
 @frappe.whitelist(allow_guest=False)
 def production_csid(zatca_doc, company_abbr):
-    """production csid button and api"""
+    """Generate Production CSID (no UI side-effects)"""
     try:
-
         if isinstance(zatca_doc, str):
             zatca_doc = json.loads(zatca_doc)
 
-        if (
-            not isinstance(zatca_doc, dict)
-            or "doctype" not in zatca_doc
-            or "name" not in zatca_doc
-        ):
-            frappe.throw(
-                _("Invalid 'zatca_doc' format. Must include 'doctype' and 'name'.")
-            )
-        # Fetch the document based on doctype and name
-        doc = frappe.get_doc(zatca_doc.get("doctype"), zatca_doc.get("name"))
-        if doc.doctype == "ZATCA Multiple Setting":
-            multiple_setting_doc = frappe.get_doc("ZATCA Multiple Setting", doc.name)
-            csid = multiple_setting_doc.custom_basic_auth_from_csid
-            request_id = multiple_setting_doc.custom_compliance_request_id_
-        elif doc.doctype == "Company":
-            company_name = frappe.db.get_value(
-                "Company", {"abbr": company_abbr}, "name"
-            )
+        if not isinstance(zatca_doc, dict) or "doctype" not in zatca_doc or "name" not in zatca_doc:
+            frappe.throw(_("Invalid zatca_doc format"))
 
+        doc = frappe.get_doc(zatca_doc["doctype"], zatca_doc["name"])
+
+        if doc.doctype == "ZATCA Multiple Setting":
+            csid = doc.custom_basic_auth_from_csid
+            request_id = doc.custom_compliance_request_id_
+        else:
+            company_name = frappe.db.get_value("Company", {"abbr": company_abbr}, "name")
             company_doc = frappe.get_doc("Company", company_name)
             csid = company_doc.custom_basic_auth_from_csid
             request_id = company_doc.custom_compliance_request_id_
 
         if not csid:
-            frappe.throw(_(("CSID for company not found")))
-
+            frappe.throw(_("Compliance CSID not found"))
         if not request_id:
-            frappe.throw(_("Compliance request ID for company  not found"))
-        payload = {"compliance_request_id": request_id}
+            frappe.throw(_("Compliance request ID not found"))
 
+        payload = {"compliance_request_id": request_id}
         headers = {
             "accept": "application/json",
             "Accept-Version": "V2",
             "Authorization": "Basic " + csid,
             "Content-Type": "application/json",
         }
+
         frappe.publish_realtime(
             "show_gif",
             {"gif_url": "/assets/zatca_erpgulf/js/loading.gif"},
@@ -1431,40 +1421,38 @@ def production_csid(zatca_doc, company_abbr):
         )
 
         response = requests.post(
-            url=get_api_url(company_abbr, base_url="production/csids"),
+            get_api_url(company_abbr, base_url="production/csids"),
             headers=headers,
             json=payload,
             timeout=300,
         )
+
         frappe.publish_realtime("hide_gif", user=frappe.session.user)
-        frappe.msgprint(response.text)
 
         if response.status_code != 200:
-            frappe.throw("Error in production: " + response.text)
+            frappe.throw(_("ZATCA Production CSID failed: {0}").format(response.text))
 
         data = response.json()
-        concatenated_value = data["binarySecurityToken"] + ":" + data["secret"]
-        encoded_value = base64.b64encode(concatenated_value.encode()).decode()
+
+        concatenated = f'{data["binarySecurityToken"]}:{data["secret"]}'
+        encoded_csid = base64.b64encode(concatenated.encode()).decode()
+
+        certificate = base64.b64decode(data["binarySecurityToken"]).decode("utf-8")
+
         if doc.doctype == "ZATCA Multiple Setting":
-            multiple_setting_doc.custom_certificate = base64.b64decode(
-                data["binarySecurityToken"]
-            ).decode("utf-8")
-            multiple_setting_doc.custom_final_auth_csid = encoded_value
-
-            multiple_setting_doc.save(ignore_permissions=True)
-        elif doc.doctype == "Company":
-            company_doc.custom_certificate = base64.b64decode(
-                data["binarySecurityToken"]
-            ).decode("utf-8")
-            company_doc.custom_basic_auth_from_production = encoded_value
-
+            doc.custom_certificate = certificate
+            doc.custom_final_auth_csid = encoded_csid
+            doc.save(ignore_permissions=True)
+        else:
+            company_doc.custom_certificate = certificate
+            company_doc.custom_basic_auth_from_production = encoded_csid
             company_doc.save(ignore_permissions=True)
 
-        return response.text
+        # ✅ ONLY return the encoded CSID
+        return encoded_csid
 
-    except (ValueError, KeyError, TypeError, frappe.ValidationError) as e:
-        frappe.throw(_("Error in production CSID formation: " + str(e)))
-        return None
+    except Exception as e:
+        frappe.throw(_("Error in Production CSID generation: {0}").format(str(e)))
 
 
 
