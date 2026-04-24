@@ -1647,6 +1647,71 @@ def zatca_Background(invoice_number):
     except Exception as e:
         frappe.throw("Error in background call: " + str(e))
 
+@frappe.whitelist(allow_guest=False)
+def create_qr_code_for_invoice(invoice_number):
+    """Create and attach QR image for Sales Invoice using existing QR generation logic."""
+    try:
+        if not frappe.db.exists("Sales Invoice", invoice_number):
+            frappe.throw(_("Sales Invoice {0} not found").format(invoice_number))
+
+        sales_invoice_doc = frappe.get_doc("Sales Invoice", invoice_number)
+        if sales_invoice_doc.docstatus != 1:
+            frappe.throw(_("Please submit the Sales Invoice before creating QR Code."))
+
+        existing_qr = frappe.get_all(
+            "File",
+            filters={
+                "attached_to_doctype": "Sales Invoice",
+                "attached_to_name": invoice_number,
+                "file_name": ["like", f"QR_image_{invoice_number}%"],
+            },
+            fields=["name"],
+            limit=1,
+        )
+        if existing_qr:
+            return {"status": "exists", "message": _("QR Code is already attached.")}
+
+        company_doc = frappe.get_doc("Company", sales_invoice_doc.company)
+        if not company_doc.tax_id:
+            frappe.throw(_("Company Tax ID is required to generate QR Code."))
+
+        posting_time = sales_invoice_doc.posting_time
+        if posting_time:
+            if hasattr(posting_time, "strftime"):
+                posting_time_str = posting_time.strftime("%H:%M:%S")
+            else:
+                posting_time_str = str(posting_time).split(".")[0]
+        else:
+            posting_time_str = "00:00:00"
+
+        invoice_datetime = f"{sales_invoice_doc.posting_date}T{posting_time_str}"
+
+        from zatca.zatca.zatcaqr import get_fatoora_qr
+
+        qr_response = get_fatoora_qr(
+            company_doc.company_name or company_doc.name,
+            company_doc.tax_id,
+            invoice_datetime,
+            str(sales_invoice_doc.grand_total or 0),
+            str(sales_invoice_doc.total_taxes_and_charges or 0),
+        )
+
+        file = frappe.get_doc(
+            {
+                "doctype": "File",
+                "file_name": f"QR_image_{sales_invoice_doc.name}.png",
+                "attached_to_doctype": sales_invoice_doc.doctype,
+                "attached_to_name": sales_invoice_doc.name,
+                "content": qr_response.get_data(),
+            }
+        )
+        file.save(ignore_permissions=True)
+
+        return {"status": "created", "message": _("QR Code created and attached successfully.")}
+
+    except Exception as e:
+        frappe.throw(_("Error creating QR Code: {0}").format(str(e)))
+
 
 
 
