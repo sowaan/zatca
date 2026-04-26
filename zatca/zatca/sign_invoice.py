@@ -748,6 +748,9 @@ def update_Qr_toXml(qrCodeB64, company_abbr):
         else:
             frappe.msgprint(f"QR code element not found in the XML for company {company_abbr}")
         xml_tree.write(xml_file_path, encoding="UTF-8", xml_declaration=True)
+        with open(xml_file_path, "r", encoding="utf-8") as file:
+            updated_xml_string = file.read()
+        return updated_xml_string
 
     except Exception as e:
         frappe.throw(f"Error in saving TLV data to XML for company {company_abbr}: " + str(e))
@@ -1477,8 +1480,8 @@ def zatca_Call(invoice_number, compliance_type="0", any_item_has_tax_template=Fa
 
         qrCodeBuf = b"".join(tagsBufsArray)
         qrCodeB64 = base64.b64encode(qrCodeBuf).decode('utf-8')
-        update_Qr_toXml(qrCodeB64,company_abbr)
-        signed_xmlfile_name = structuring_signedxml()
+        updated_xml_string = update_Qr_toXml(qrCodeB64, company_abbr)
+        signed_xmlfile_name = structuring_signedxml(invoice_number, updated_xml_string)
         
         if compliance_type == "0":
             if customer_doc.custom_b2c == 1:
@@ -1589,8 +1592,8 @@ def zatca_Call_compliance(invoice_number, company_abbr, compliance_type="0", any
         qrCodeBuf = b"".join(tagsBufsArray)
         qrCodeB64 = base64.b64encode(qrCodeBuf).decode('utf-8')
 
-        update_Qr_toXml(qrCodeB64, company_abbr)
-        signed_xmlfile_name = structuring_signedxml()
+        updated_xml_string = update_Qr_toXml(qrCodeB64, company_abbr)
+        signed_xmlfile_name = structuring_signedxml(invoice_number, updated_xml_string)
        
         # Make the compliance API call
         compliance_api_call(uuid1, encoded_hash, signed_xmlfile_name, company_abbr)

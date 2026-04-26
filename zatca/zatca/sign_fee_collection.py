@@ -549,8 +549,8 @@ def zatca_Call_fee_collection(fee_collection_number, compliance_type="0", compan
         
         qrCodeBuf = b"".join(tagsBufsArray)
         qrCodeB64 = base64.b64encode(qrCodeBuf).decode('utf-8')
-        update_Qr_toXml(qrCodeB64, company_abbr)
-        signed_xmlfile_name = structuring_signedxml()
+        updated_xml_string = update_Qr_toXml(qrCodeB64, company_abbr)
+        signed_xmlfile_name = structuring_signedxml(fee_collection_number, updated_xml_string)
         
         if compliance_type == "0":
             if is_b2c:
