@@ -14,6 +14,15 @@ from zatca.zatca.country_code import country_code_mapping
 CBC_ID = "cbc:ID"
 DS_TRANSFORM = "ds:Transform"
 
+
+def get_sa_vat_number(value):
+    vat_number = re.sub(r"\D", "", str(value or ""))
+    if len(vat_number) == 15 and vat_number.startswith("3") and vat_number.endswith("3"):
+        return vat_number
+
+    return None
+
+
 def get_Tax_for_Item(full_string,item):
     try:    # getting tax percentage and tax amount
         data = json.loads(full_string)
@@ -625,7 +634,14 @@ def company_data(invoice, sales_invoice_doc):
 
         cac_partytaxscheme = ET.SubElement(cac_party_1, "cac:PartyTaxScheme")
         cbc_companyid = ET.SubElement(cac_partytaxscheme, "cbc:CompanyID")
-        cbc_companyid.text = company_doc.tax_id
+        supplier_vat_number = get_sa_vat_number(company_doc.tax_id)
+        if not supplier_vat_number:
+            frappe.throw(
+                _(
+                    "Company VAT Registration Number must contain 15 digits and start and end with 3."
+                )
+            )
+        cbc_companyid.text = supplier_vat_number
 
         cac_taxscheme = ET.SubElement(cac_partytaxscheme, "cac:TaxScheme")
         cbc_id_3 = ET.SubElement(cac_taxscheme, CBC_ID)
@@ -655,12 +671,15 @@ def customer_data(invoice, sales_invoice_doc):
         )
         cac_party_2 = ET.SubElement(cac_accountingcustomerparty, "cac:Party")
         
-        # Only add PartyIdentification if NOT B2C or if the field custom_buyer_id is not empty, otherwise ZATCA gives BR-KSA-F-08 warning for empty tag
-        if not customer_doc.custom_b2c or (customer_doc.custom_b2c and customer_doc.custom_buyer_id):
+        buyer_id = str(customer_doc.custom_buyer_id or "").strip()
+        buyer_id_type = str(customer_doc.custom_buyer_id_type or "").strip()
+
+        # Empty buyer IDs create ZATCA warnings, especially when the default scheme is TIN.
+        if buyer_id and buyer_id_type:
             cac_partyidentification_1 = ET.SubElement(cac_party_2, "cac:PartyIdentification")
             cbc_id_4 = ET.SubElement(cac_partyidentification_1, CBC_ID)
-            cbc_id_4.set("schemeID", str(customer_doc.custom_buyer_id_type))
-            cbc_id_4.text = customer_doc.custom_buyer_id            
+            cbc_id_4.set("schemeID", buyer_id_type)
+            cbc_id_4.text = buyer_id
 
         country_dict = country_code_mapping()
         address = None
@@ -740,10 +759,14 @@ def customer_data(invoice, sales_invoice_doc):
         # if address and address.country == "Saudi Arabia":
         #     cbc_company_id = ET.SubElement(cac_partytaxscheme_1, "cbc:CompanyID")
         #     cbc_company_id.text = customer_doc.tax_id
-         # Only add CompanyID if custom_buyer_id is not set
-        if not customer_doc.custom_buyer_id:
+        # Only valid Saudi VAT numbers can be sent as buyer VAT registration number (BT-48).
+        buyer_vat_number = None
+        if not sales_invoice_doc.custom_zatca_export_invoice:
+            buyer_vat_number = get_sa_vat_number(customer_doc.tax_id)
+
+        if buyer_vat_number:
             cbc_company_id = ET.SubElement(cac_partytaxscheme_1, "cbc:CompanyID")
-            cbc_company_id.text = customer_doc.tax_id 
+            cbc_company_id.text = buyer_vat_number
 
 
         # Always include tax scheme
@@ -1638,5 +1661,3 @@ def add_nominal_discount_tax(invoice, sales_invoice_doc):
     except (ValueError, KeyError, AttributeError) as error:
         frappe.throw(_(f"Error occurred in nominal discount: {str(error)}"))
         return None
-
-
