@@ -912,6 +912,45 @@ def error_Log():
 
 
 
+def new_attach_QR_Image(qrCodeB64, sales_invoice_doc):
+    try:
+        # Create QR PNG
+        qr = pyqrcode.create(qrCodeB64)
+        temp_file_path = "qr_code.png"
+        qr.png(temp_file_path, scale=5)
+
+        file_name = f"QR_image_{sales_invoice_doc.name}.png"
+
+        # 🔍 Check if a QR image already exists for this invoice
+        existing_file = frappe.db.get_value(
+            "File",
+            {
+                "attached_to_doctype": sales_invoice_doc.doctype,
+                "attached_to_name": sales_invoice_doc.name,
+                "file_name": file_name
+            },
+            "name"
+        )
+
+        # Remove existing file (to avoid duplicates)
+        if existing_file:
+            frappe.delete_doc("File", existing_file, ignore_permissions=True)
+
+        # Create new file
+        with open(temp_file_path, "rb") as f:
+            content = f.read()
+
+        new_file = frappe.get_doc({
+            "doctype": "File",
+            "file_name": file_name,
+            "attached_to_doctype": sales_invoice_doc.doctype,
+            "attached_to_name": sales_invoice_doc.name,
+            "content": content
+        })
+        new_file.save(ignore_permissions=True)
+
+    except Exception as e:
+        frappe.throw("Error generating QR code: " + str(e))
 
 def attach_QR_Image(qrCodeB64,sales_invoice_doc):
     try:
@@ -1381,6 +1420,104 @@ def clearance_API(uuid1, encoded_hash, signed_xmlfile_name, invoice_number, sale
         frappe.throw("Error in clearance API: " + str(e))
 
 
+@frappe.whitelist(allow_guest=True)
+def new_zatca_Call(
+    invoice_number,
+    compliance_type="0",
+    any_item_has_tax_template=False,
+    company_abbr=None,
+    submit_to_zatca=True   # <-- new argument
+):
+    try:
+        if not frappe.db.exists("Sales Invoice", invoice_number):
+            frappe.throw("Invoice Number is NOT Valid: " + str(invoice_number))
+
+        invoice = xml_tags()
+        invoice, uuid1, sales_invoice_doc = salesinvoice_data(invoice, invoice_number)
+
+        # Get the company abbreviation
+        company_abbr = frappe.db.get_value("Company", {"name": sales_invoice_doc.company}, "abbr")
+
+        customer_doc = frappe.get_doc("Customer", sales_invoice_doc.customer)
+
+        if compliance_type == "0":
+            if customer_doc.custom_b2c == 1:
+                invoice = invoice_Typecode_Simplified(invoice, sales_invoice_doc)
+            else:
+                invoice = invoice_Typecode_Standard(invoice, sales_invoice_doc)
+        else:
+            invoice = invoice_Typecode_Compliance(invoice, compliance_type)
+
+        invoice = doc_Reference(invoice, sales_invoice_doc, invoice_number)
+        invoice = additional_Reference(invoice, company_abbr)
+        invoice = company_Data(invoice, sales_invoice_doc)
+        invoice = customer_Data(invoice, sales_invoice_doc)
+        invoice = delivery_And_PaymentMeans(invoice, sales_invoice_doc, sales_invoice_doc.is_return)
+
+        if not any_item_has_tax_template:
+            invoice = tax_Data(invoice, sales_invoice_doc)
+        else:
+            invoice = tax_Data_with_template(invoice, sales_invoice_doc)
+
+        if not any_item_has_tax_template:
+            invoice = item_data(invoice, sales_invoice_doc)
+        else:
+            invoice = item_data_with_template(invoice, sales_invoice_doc)
+
+        pretty_xml_string = xml_structuring(invoice, sales_invoice_doc)
+
+        try:
+            with open(frappe.local.site + "/private/files/finalzatcaxml.xml", 'r') as file:
+                file_content = file.read()
+        except FileNotFoundError:
+            frappe.throw("XML file not found")
+
+        tag_removed_xml = removeTags(file_content)
+        canonicalized_xml = canonicalize_xml(tag_removed_xml)
+        hash1, encoded_hash = getInvoiceHash(canonicalized_xml)
+        encoded_signature = digital_signature(hash1, company_abbr)
+        issuer_name, serial_number = extract_certificate_details(company_abbr)
+        encoded_certificate_hash = certificate_hash(company_abbr)
+        namespaces, signing_time = signxml_modify(company_abbr)
+        signed_properties_base64 = generate_Signed_Properties_Hash(
+            signing_time,
+            issuer_name,
+            serial_number,
+            encoded_certificate_hash
+        )
+        populate_The_UBL_Extensions_Output(
+            encoded_signature,
+            namespaces,
+            signed_properties_base64,
+            encoded_hash,
+            company_abbr
+        )
+        tlv_data = generate_tlv_xml(company_abbr)
+
+        tagsBufsArray = []
+        for tag_num, tag_value in tlv_data.items():
+            tagsBufsArray.append(get_tlv_for_value(tag_num, tag_value))
+
+        qrCodeBuf = b"".join(tagsBufsArray)
+        qrCodeB64 = base64.b64encode(qrCodeBuf).decode('utf-8')
+        update_Qr_toXml(qrCodeB64, company_abbr)
+        signed_xmlfile_name = structuring_signedxml()
+
+        # ✅ Always attach QR to invoice, even if not submitting
+        new_attach_QR_Image(qrCodeB64, sales_invoice_doc)
+
+        # ✅ Only this part is controlled by submit_to_zatca
+        if submit_to_zatca:
+            if compliance_type == "0":
+                if customer_doc.custom_b2c == 1:
+                    reporting_API(uuid1, encoded_hash, signed_xmlfile_name, invoice_number, sales_invoice_doc)
+                else:
+                    xml_cleared = clearance_API(uuid1, encoded_hash, signed_xmlfile_name, invoice_number, sales_invoice_doc)
+            else:
+                compliance_api_call(uuid1, encoded_hash, signed_xmlfile_name, company_abbr)
+
+    except Exception as e:
+        frappe.log_error(title='Zatca invoice call failed', message=frappe.get_traceback())
 
 
 
@@ -1645,7 +1782,7 @@ def zatca_Background(invoice_number):
         if settings.custom_zatca_invoice_enabled != 1:
             frappe.throw("Zatca Invoice is not enabled in Company Settings, Please contact your system administrator")
 
-        zatca_Call(invoice_number, "0", any_item_has_tax_template, company_abbr)
+        new_zatca_Call(invoice_number, "0", any_item_has_tax_template, company_abbr, submit_to_zatca=True)
 
     except Exception as e:
         frappe.throw("Error in background call: " + str(e))
@@ -1771,8 +1908,19 @@ def zatca_Background_on_submit(doc, method=None):
         if sales_invoice_doc.custom_zatca_status in ["REPORTED", "CLEARED"]:
             frappe.throw("Already submitted to Zakat and Tax Authority")
         
-        if company_doc.custom_zatca_invoices_on_submission == 1:
-            zatca_Call(invoice_number, "0", any_item_has_tax_template, company_abbr)
+        # if company_doc.custom_zatca_invoices_on_submission == 1:
+        #     zatca_Call(invoice_number, "0", any_item_has_tax_template, company_abbr)
+        
+        # Always generate XML + QR
+        submit_to_zatca = company_doc.custom_zatca_invoices_on_submission == 1
+
+        new_zatca_Call(
+            invoice_number,
+            "0",
+            any_item_has_tax_template,
+            company_abbr,
+            submit_to_zatca=submit_to_zatca
+        )
         
     except Exception as e:
         frappe.throw("Error in background call: " + str(e))
