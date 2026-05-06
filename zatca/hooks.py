@@ -13,6 +13,19 @@ app_license = "mit"
 # app_include_css = "/assets/zatca/css/zatca.css"
 # app_include_js = "/assets/zatca/js/zatca.js"
 
+
+# app_include_css = "/assets/zatca_wizard/css/zatca_wizard.css"
+# app_include_js = "/assets/zatca_wizard/js/zatca_wizard.js"
+# app_include_js = [
+#     "public/js/setup_wizard.js"
+# ]
+# setup_wizard_js = "public/js/zatca_setup_wizard.js"
+# app_include_js = [
+#     "/assets/zatca_wizard/js/after_setup_redirect.js"
+# ]
+
+# setup_wizard_complete = "zatca_wizard.utils.setup.setup_wizard_save_zatca_info"
+
 # include js, css files in header of web template
 # web_include_css = "/assets/zatca/css/zatca.css"
 # web_include_js = "/assets/zatca/js/zatca.js"
@@ -220,6 +233,9 @@ doc_events = {
         "before_cancel": "zatca.zatca.validations.before_save",
         "after_insert": "zatca.zatca.validations.duplicating_invoice",
         "on_submit": "zatca.zatca.sign_invoice.zatca_Background_on_submit"
+    },
+    "Fee Collections": {
+        "on_submit": "zatca.zatca.sign_fee_collection.zatca_Background_fee_on_submit"
     }
     # ,
     # "Address": {
@@ -229,11 +245,21 @@ doc_events = {
 
 doctype_js = {
     "Sales Invoice" : "public/js/our_sales_invoice.js",
+    "Fee Collections": "public/js/fee_collection.js",
     "Company": "public/js/company.js",
     # "Address": "public/js/address.js",
 }
 
 
-fixtures = [ {"dt": "Custom Field","filters": [["module", "=", "Zatca"]] }]
+# fixtures = [ {"dt": "Custom Field","filters": [["module", "=", "Zatca"]] }]
 
 
+fixtures = [
+    {
+        "doctype": "Custom Field",
+        "filters": {
+            "module": "Zatca",
+            "dt": ["!=", "Fee Collections"]
+        }
+    }
+]

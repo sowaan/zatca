@@ -2,7 +2,7 @@
 # Patches added in this section will be executed after doctypes are migrated
 # zatca.patches.create_and_set_address_fields
 zatca.patches.delete_address_work
-
+zatca.patches.v1_0.add_fee_collections_zatca_fields
 
 
 [pre_model_sync]
