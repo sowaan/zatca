@@ -1,6 +1,8 @@
 from lxml import etree
 import hashlib
 import base64 
+import os
+from urllib.parse import unquote
 import lxml.etree as MyTree
 from datetime import datetime
 import frappe
@@ -1787,6 +1789,29 @@ def zatca_Background(invoice_number):
     except Exception as e:
         frappe.throw("Error in background call: " + str(e))
 
+def _qr_file_exists(file_url):
+    if not file_url:
+        return False
+
+    if file_url.startswith("http://") or file_url.startswith("https://"):
+        try:
+            response = requests.head(file_url, allow_redirects=True, timeout=5)
+            return response.status_code < 400 or response.status_code == 403
+        except requests.RequestException:
+            return False
+
+    file_url = unquote(file_url)
+    if file_url.startswith("/private/files/"):
+        relative = file_url.lstrip("/")
+        file_path = frappe.utils.get_site_path(relative)
+    elif file_url.startswith("/files/"):
+        relative = file_url[len("/files/"):]
+        file_path = frappe.utils.get_site_path("public", "files", relative)
+    else:
+        return False
+
+    return os.path.exists(file_path)
+
 @frappe.whitelist(allow_guest=False)
 def create_qr_code_for_invoice(invoice_number):
     """Create and attach QR image for Sales Invoice using existing QR generation logic."""
@@ -1805,11 +1830,15 @@ def create_qr_code_for_invoice(invoice_number):
                 "attached_to_name": invoice_number,
                 "file_name": ["like", f"QR_image_{invoice_number}%"],
             },
-            fields=["name"],
+            fields=["name", "file_url"],
             limit=1,
         )
         if existing_qr:
-            return {"status": "exists", "message": _("QR Code is already attached.")}
+            file_url = existing_qr[0].get("file_url")
+            if _qr_file_exists(file_url):
+                return {"status": "exists", "message": _("QR Code is already attached.")}
+
+            frappe.delete_doc("File", existing_qr[0].get("name"), ignore_permissions=True)
 
         company_doc = frappe.get_doc("Company", sales_invoice_doc.company)
         if not company_doc.tax_id:
