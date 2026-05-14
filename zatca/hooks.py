@@ -146,23 +146,11 @@ app_license = "mit"
 # Scheduled Tasks
 # ---------------
 
-# scheduler_events = {
-# 	"all": [
-# 		"zatca.tasks.all"
-# 	],
-# 	"daily": [
-# 		"zatca.tasks.daily"
-# 	],
-# 	"hourly": [
-# 		"zatca.tasks.hourly"
-# 	],
-# 	"weekly": [
-# 		"zatca.tasks.weekly"
-# 	],
-# 	"monthly": [
-# 		"zatca.tasks.monthly"
-# 	],
-# }
+scheduler_events = {
+    "daily": [
+        "zatca.tasks.retry_pending_zatca_submissions"
+    ],
+}
 
 # Testing
 # -------
