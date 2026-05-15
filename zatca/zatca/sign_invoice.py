@@ -1450,11 +1450,11 @@ def new_zatca_Call(
         else:
             invoice = invoice_typecode_compliance(invoice, compliance_type)
 
-        invoice = doc_Reference(invoice, sales_invoice_doc, invoice_number)
-        invoice = additional_Reference(invoice, company_abbr)
-        invoice = company_Data(invoice, sales_invoice_doc)
-        invoice = customer_Data(invoice, sales_invoice_doc)
-        invoice = delivery_And_PaymentMeans(invoice, sales_invoice_doc, sales_invoice_doc.is_return)
+        invoice = doc_reference(invoice, sales_invoice_doc, invoice_number)
+        invoice = additional_reference(invoice, company_abbr)
+        invoice = company_data(invoice, sales_invoice_doc)
+        invoice = customer_data(invoice, sales_invoice_doc)
+        invoice = delivery_and_payment_means(invoice, sales_invoice_doc, sales_invoice_doc.is_return)
 
         if not any_item_has_tax_template:
             invoice = tax_Data(invoice, sales_invoice_doc)
