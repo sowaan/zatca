@@ -125,10 +125,17 @@ def create_private_keys(company_abbr):
             encryption_algorithm=serialization.NoEncryption()
         )
 
-        # Store the private key directly in the company document
-        company_doc.custom_private_key = private_key_pem.decode('utf-8')
-        company_doc.save(ignore_permissions=True)
-        
+        # Store the private key directly in the company document.
+        # Use db.set_value to bypass Company controller validations from other
+        # custom apps that may fire on a full save (e.g. loan / asset rules).
+        frappe.db.set_value(
+            'Company',
+            company_name,
+            'custom_private_key',
+            private_key_pem.decode('utf-8'),
+            update_modified=False,
+        )
+
         return private_key_pem
 
     except Exception as e:
@@ -315,10 +322,19 @@ def create_public_key(company_abbr):
         public_key_pem = public_key.public_bytes(
             encoding=serialization.Encoding.PEM,
             format=serialization.PublicFormat.SubjectPublicKeyInfo
-        ).decode()  
-        
-        company_doc.custom_public_key = public_key_pem
-        company_doc.save(ignore_permissions=True)
+        ).decode()
+
+        # Use db.set_value to persist only this field. A full company_doc.save()
+        # would re-run all Company controller validations from other installed
+        # apps (e.g. "Collection Offset Sequence") which are unrelated to ZATCA
+        # and would block QR generation.
+        frappe.db.set_value(
+            'Company',
+            company_name,
+            'custom_public_key',
+            public_key_pem,
+            update_modified=False,
+        )
 
     except Exception as e:
         frappe.throw("Error in public key creation: " + str(e))
@@ -1451,7 +1467,7 @@ def new_zatca_Call(
             invoice = invoice_typecode_compliance(invoice, compliance_type)
 
         invoice = doc_reference(invoice, sales_invoice_doc, invoice_number)
-        invoice = additional_reference(invoice, company_abbr)
+        invoice = additional_reference(invoice, company_abbr,)
         invoice = company_data(invoice, sales_invoice_doc)
         invoice = customer_data(invoice, sales_invoice_doc)
         invoice = delivery_and_payment_means(invoice, sales_invoice_doc, sales_invoice_doc.is_return)
@@ -1523,7 +1539,6 @@ def new_zatca_Call(
 
 
 
-@frappe.whitelist(allow_guest=True)
 @frappe.whitelist(allow_guest=True)
 def zatca_Call(invoice_number, compliance_type="0", any_item_has_tax_template=False, company_abbr=None, source_doc=None,):
     try:
@@ -1784,7 +1799,7 @@ def zatca_Background(invoice_number):
         if settings.custom_zatca_invoice_enabled != 1:
             frappe.throw("Zatca Invoice is not enabled in Company Settings, Please contact your system administrator")
 
-        new_zatca_Call(invoice_number, "0", any_item_has_tax_template, company_abbr, submit_to_zatca=True)
+        zatca_Call(invoice_number, "0", any_item_has_tax_template, company_abbr)
 
     except Exception as e:
         frappe.throw("Error in background call: " + str(e))
@@ -1814,7 +1829,15 @@ def _qr_file_exists(file_url):
 
 @frappe.whitelist(allow_guest=False)
 def create_qr_code_for_invoice(invoice_number):
-    """Create and attach QR image for Sales Invoice using existing QR generation logic."""
+    """Create and attach a ZATCA Phase-2 compliant QR image for a Sales Invoice.
+
+    Phase-2 QR codes must encode 9 TLV tags including the signed invoice hash
+    (tag 6), the ECDSA signature value (tag 7), the public key (tag 8) and the
+    certificate stamp signature (tag 9). These can only be produced after the
+    UBL invoice XML has been built, canonicalized, hashed and signed using the
+    company's CSID. This function runs that pipeline without submitting the
+    invoice to ZATCA.
+    """
     try:
         if not frappe.db.exists("Sales Invoice", invoice_number):
             frappe.throw(_("Sales Invoice {0} not found").format(invoice_number))
@@ -1823,6 +1846,7 @@ def create_qr_code_for_invoice(invoice_number):
         if sales_invoice_doc.docstatus != 1:
             frappe.throw(_("Please submit the Sales Invoice before creating QR Code."))
 
+        # Replace any previously attached QR (we always regenerate a Phase-2 QR)
         existing_qr = frappe.get_all(
             "File",
             filters={
@@ -1834,51 +1858,141 @@ def create_qr_code_for_invoice(invoice_number):
             limit=1,
         )
         if existing_qr:
-            file_url = existing_qr[0].get("file_url")
-            if _qr_file_exists(file_url):
-                return {"status": "exists", "message": _("QR Code is already attached.")}
+            frappe.delete_doc(
+                "File", existing_qr[0].get("name"), ignore_permissions=True
+            )
 
-            frappe.delete_doc("File", existing_qr[0].get("name"), ignore_permissions=True)
+        company_abbr = frappe.db.get_value(
+            "Company", {"name": sales_invoice_doc.company}, "abbr"
+        )
+        if not company_abbr:
+            frappe.throw(
+                _(f"Company with name {sales_invoice_doc.company} not found.")
+            )
 
-        company_doc = frappe.get_doc("Company", sales_invoice_doc.company)
-        if not company_doc.tax_id:
-            frappe.throw(_("Company Tax ID is required to generate QR Code."))
+        # Ensure item tax templates are used consistently (same rule as zatca_Call)
+        any_item_has_tax_template = any(
+            item.item_tax_template for item in sales_invoice_doc.items
+        )
+        if any_item_has_tax_template and not all(
+            item.item_tax_template for item in sales_invoice_doc.items
+        ):
+            frappe.throw(
+                _(
+                    "If any one item has an Item Tax Template, all items must have an Item Tax Template."
+                )
+            )
 
-        posting_time = sales_invoice_doc.posting_time
-        if posting_time:
-            if hasattr(posting_time, "strftime"):
-                posting_time_str = posting_time.strftime("%H:%M:%S")
-            else:
-                posting_time_str = str(posting_time).split(".")[0]
+        customer_doc = frappe.get_doc("Customer", sales_invoice_doc.customer)
+
+        # --- Build UBL invoice XML (mirrors zatca_Call) ---
+        invoice = xml_tags()
+        invoice, uuid1, sales_invoice_doc = salesinvoice_data(invoice, invoice_number)
+
+        if customer_doc.custom_b2c == 1:
+            invoice = invoice_typecode_simplified(invoice, sales_invoice_doc)
         else:
-            posting_time_str = "00:00:00"
+            invoice = invoice_typecode_standard(invoice, sales_invoice_doc)
 
-        invoice_datetime = f"{sales_invoice_doc.posting_date}T{posting_time_str}"
-
-        from zatca.zatca.zatcaqr import get_fatoora_qr
-
-        qr_response = get_fatoora_qr(
-            company_doc.company_name or company_doc.name,
-            company_doc.tax_id,
-            invoice_datetime,
-            str(sales_invoice_doc.grand_total or 0),
-            str(sales_invoice_doc.total_taxes_and_charges or 0),
+        invoice = doc_reference(invoice, sales_invoice_doc, invoice_number)
+        invoice = additional_reference(invoice, company_abbr, sales_invoice_doc)
+        invoice = company_data(invoice, sales_invoice_doc)
+        invoice = customer_data(invoice, sales_invoice_doc)
+        invoice = delivery_and_payment_means(
+            invoice, sales_invoice_doc, sales_invoice_doc.is_return
         )
 
-        file = frappe.get_doc(
-            {
-                "doctype": "File",
-                "file_name": f"QR_image_{sales_invoice_doc.name}.png",
-                "attached_to_doctype": sales_invoice_doc.doctype,
-                "attached_to_name": sales_invoice_doc.name,
-                "content": qr_response.get_data(),
-            }
-        )
-        file.save(ignore_permissions=True)
+        if sales_invoice_doc.custom_zatca_nominal_invoice == 1:
+            invoice = add_nominal_discount_tax(invoice, sales_invoice_doc)
+        elif not any_item_has_tax_template:
+            invoice = add_document_level_discount_with_tax(invoice, sales_invoice_doc)
+        else:
+            invoice = add_document_level_discount_with_tax_template(
+                invoice, sales_invoice_doc
+            )
 
-        return {"status": "created", "message": _("QR Code created and attached successfully.")}
+        if sales_invoice_doc.custom_zatca_nominal_invoice == 1:
+            if not any_item_has_tax_template:
+                invoice = tax_data_nominal(invoice, sales_invoice_doc)
+            else:
+                invoice = tax_data_with_template_nominal(invoice, sales_invoice_doc)
+        else:
+            if not any_item_has_tax_template:
+                invoice = tax_Data(invoice, sales_invoice_doc)
+            else:
+                invoice = tax_Data_with_template(invoice, sales_invoice_doc)
+
+        is_claudion_installed = "claudion4saudi" in frappe.get_installed_apps()
+        has_advance_copy = (
+            hasattr(sales_invoice_doc, "custom_advances_copy")
+            and sales_invoice_doc.custom_advances_copy
+        )
+        if is_claudion_installed and has_advance_copy:
+            if not any_item_has_tax_template:
+                invoice = item_data_advance_invoice(invoice, sales_invoice_doc)
+            else:
+                invoice = item_data_with_template_advance_invoice(
+                    invoice, sales_invoice_doc
+                )
+        else:
+            if not any_item_has_tax_template:
+                invoice = item_data(invoice, sales_invoice_doc)
+            else:
+                invoice = item_data_with_template(invoice, sales_invoice_doc)
+
+        xml_structuring(invoice, sales_invoice_doc)
+
+        try:
+            with open(
+                frappe.local.site + "/private/files/finalzatcaxml.xml", "r"
+            ) as file:
+                file_content = file.read()
+        except FileNotFoundError:
+            frappe.throw(_("XML file not found"))
+
+        # --- Hash, sign, embed signature, then build Phase-2 TLV QR ---
+        tag_removed_xml = removeTags(file_content)
+        canonicalized_xml = canonicalize_xml(tag_removed_xml)
+        hash1, encoded_hash = getInvoiceHash(canonicalized_xml)
+        encoded_signature = digital_signature(hash1, company_abbr)
+        issuer_name, serial_number = extract_certificate_details(company_abbr)
+        encoded_certificate_hash = certificate_hash(company_abbr)
+        namespaces, signing_time = signxml_modify(company_abbr)
+        signed_properties_base64 = generate_Signed_Properties_Hash(
+            signing_time, issuer_name, serial_number, encoded_certificate_hash
+        )
+        populate_The_UBL_Extensions_Output(
+            encoded_signature,
+            namespaces,
+            signed_properties_base64,
+            encoded_hash,
+            company_abbr,
+        )
+
+        tlv_data = generate_tlv_xml(company_abbr)
+        tagsBufsArray = []
+        for tag_num, tag_value in tlv_data.items():
+            tagsBufsArray.append(get_tlv_for_value(tag_num, tag_value))
+
+        qrCodeBuf = b"".join(tagsBufsArray)
+        qrCodeB64 = base64.b64encode(qrCodeBuf).decode("utf-8")
+
+        # Embed QR back into the signed XML (keeps stored XML consistent)
+        update_Qr_toXml(qrCodeB64, company_abbr)
+
+        # Render and attach the Phase-2 QR PNG (handles duplicates)
+        new_attach_QR_Image(qrCodeB64, sales_invoice_doc)
+
+        return {
+            "status": "created",
+            "message": _("ZATCA Phase-2 QR Code created and attached successfully."),
+        }
 
     except Exception as e:
+        frappe.log_error(
+            title="ZATCA Phase-2 QR generation failed",
+            message=frappe.get_traceback(),
+        )
         frappe.throw(_("Error creating QR Code: {0}").format(str(e)))
 
 
@@ -1937,19 +2051,19 @@ def zatca_Background_on_submit(doc, method=None):
         if sales_invoice_doc.custom_zatca_status in ["REPORTED", "CLEARED"]:
             frappe.throw("Already submitted to Zakat and Tax Authority")
         
-        # if company_doc.custom_zatca_invoices_on_submission == 1:
-        #     zatca_Call(invoice_number, "0", any_item_has_tax_template, company_abbr)
+        if company_doc.custom_zatca_invoices_on_submission == 1:
+            zatca_Call(invoice_number, "0", any_item_has_tax_template, company_abbr)
         
         # Always generate XML + QR
-        submit_to_zatca = company_doc.custom_zatca_invoices_on_submission == 1
+        # submit_to_zatca = company_doc.custom_zatca_invoices_on_submission == 1
 
-        new_zatca_Call(
-            invoice_number,
-            "0",
-            any_item_has_tax_template,
-            company_abbr,
-            submit_to_zatca=submit_to_zatca
-        )
+        # new_zatca_Call(
+        #     invoice_number,
+        #     "0",
+        #     any_item_has_tax_template,
+        #     company_abbr,
+        #     submit_to_zatca=submit_to_zatca
+        # )
         
     except Exception as e:
         frappe.throw("Error in background call: " + str(e))
