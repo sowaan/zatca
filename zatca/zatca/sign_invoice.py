@@ -1444,11 +1444,11 @@ def new_zatca_Call(
 
         if compliance_type == "0":
             if customer_doc.custom_b2c == 1:
-                invoice = invoice_Typecode_Simplified(invoice, sales_invoice_doc)
+                invoice = invoice_typecode_simplified(invoice, sales_invoice_doc)
             else:
-                invoice = invoice_Typecode_Standard(invoice, sales_invoice_doc)
+                invoice = invoice_typecode_standard(invoice, sales_invoice_doc)
         else:
-            invoice = invoice_Typecode_Compliance(invoice, compliance_type)
+            invoice = invoice_typecode_compliance(invoice, compliance_type)
 
         invoice = doc_Reference(invoice, sales_invoice_doc, invoice_number)
         invoice = additional_Reference(invoice, company_abbr)
