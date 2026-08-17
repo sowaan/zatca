@@ -4,6 +4,7 @@ app_publisher = "Sowaan"
 app_description = "Implementaiton of Saudi E-Invoicing Phase-2 on Frappe ERPNext"
 app_email = "support@sowaan.com"
 app_license = "mit"
+app_logo_url = "/assets/zatca/images/zatca-logo.png"
 # required_apps = []
 
 # Includes in <head>
