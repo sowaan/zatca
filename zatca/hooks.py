@@ -13,6 +13,7 @@ app_logo_url = "/assets/zatca/images/zatca-logo.png"
 # include js, css files in header of desk.html
 # app_include_css = "/assets/zatca/css/zatca.css"
 # app_include_js = "/assets/zatca/js/zatca.js"
+app_include_js = "/assets/zatca/js/zatca_banner.js"
 
 
 # app_include_css = "/assets/zatca_wizard/css/zatca_wizard.css"

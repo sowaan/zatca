@@ -227,8 +227,110 @@ frappe.pages['zatca-wizard'].on_page_load = function (wrapper) {
 
 	let current_slide_index = 0;
 	let selected_company = null;
+	// Despite the name (kept from the previous Dialog-based implementation to
+	// minimize churn across this file), this now holds a frappe.ui.FieldGroup
+	// instance — frappe.ui.Dialog itself extends FieldGroup, so every method
+	// used on it here (get_value, set_value, get_values, fields_dict, refresh)
+	// behaves identically; only the modal chrome (show/hide/backdrop) is gone.
 	let current_dialog = null;
 	let slideData = {};
+
+	// Gates advancing past a step whose action button hasn't actually been run
+	// yet (e.g. clicking Next on "Create CSR" without ever clicking the
+	// Create CSR button) — separate from field validation, this is a
+	// workflow-sequencing check.
+	let csrGenerated = false;
+	let csidGenerated = false;
+	let finalCsidGenerated = false;
+
+	const WIZARD_PROGRESS_KEY = `zatca_wizard_progress:${frappe.session.user}`;
+
+	function saveWizardProgress() {
+		try {
+			localStorage.setItem(
+				WIZARD_PROGRESS_KEY,
+				JSON.stringify({
+					current_slide_index,
+					slideData,
+					selected_company,
+					csrGenerated,
+					csidGenerated,
+					finalCsidGenerated,
+					complianceState,
+				})
+			);
+		} catch (e) {
+			// localStorage can throw (private browsing, quota) — losing resume
+			// state isn't fatal, so fail silently rather than break the wizard.
+		}
+	}
+
+	function clearWizardProgress() {
+		try {
+			localStorage.removeItem(WIZARD_PROGRESS_KEY);
+		} catch (e) {
+			// ignore
+		}
+	}
+
+	function loadWizardProgress() {
+		try {
+			const raw = localStorage.getItem(WIZARD_PROGRESS_KEY);
+			return raw ? JSON.parse(raw) : null;
+		} catch (e) {
+			return null;
+		}
+	}
+
+	// Inline field errors instead of frappe.msgprint popups. Deliberately not
+	// using `reqd: 1` for this — FieldGroup.get_values() unconditionally shows
+	// its own "Missing Values Required" msgprint whenever a reqd field is
+	// empty (unless called with ignore_errors=true, which we do), so relying
+	// on `reqd` either pops up frappe's own dialog or silently does nothing.
+	// Validation here is entirely manual and independent of `reqd`.
+	function showFieldError(dialog, fieldname, message) {
+		const field = dialog.fields_dict[fieldname];
+		if (!field) return;
+		field.set_description(`<span style="color:#e03131;">${frappe.utils.escape_html(message)}</span>`);
+		field.$wrapper.find(".form-control").addClass("zatca-field-invalid");
+	}
+
+	function clearFieldError(dialog, fieldname) {
+		const field = dialog.fields_dict[fieldname];
+		if (!field) return;
+		field.set_description("");
+		field.$wrapper.find(".form-control").removeClass("zatca-field-invalid");
+	}
+
+	function clearFieldErrors(dialog, fieldnames) {
+		fieldnames.forEach((fieldname) => clearFieldError(dialog, fieldname));
+	}
+
+	const SLIDE_STEP_LABELS = [
+		"Welcome",
+		"Select Company",
+		"Integration Type",
+		"Company Details",
+		"Create CSR",
+		"Enter OTP",
+		"Compliance Check",
+		"Final CSID",
+		"Steps to Follow",
+	];
+
+	function updateStepIndicator(index) {
+		const steps_html = SLIDE_STEP_LABELS.map((label, i) => {
+			const state = i < index ? "done" : i === index ? "active" : "upcoming";
+			return `
+				<div class="zatca-step-item">
+					<span class="zatca-step zatca-step-${state}">${i < index ? "✓" : i + 1}</span>
+					<span class="zatca-step-label zatca-step-label-${state}">${frappe.utils.escape_html(label)}</span>
+				</div>
+			`;
+		}).join('<div class="zatca-step-sep"></div>');
+
+		$wizard_steps_row.html(steps_html);
+	}
 
 	const slides_settings = [
 		{
@@ -261,9 +363,9 @@ frappe.pages['zatca-wizard'].on_page_load = function (wrapper) {
 									gap: 24px;
 									margin-bottom: 24px;
 								">
-									<img 
-										src="/files/Sowaan_logo.png" 
-										alt="Sowaan" 
+									<img
+										src="/assets/zatca/images/zatca-logo.png"
+										alt="Sowaan"
 										style="max-height: 55px;"
 									/>
 								</div>
@@ -314,7 +416,6 @@ frappe.pages['zatca-wizard'].on_page_load = function (wrapper) {
 		">
 			<strong>Company Selection</strong><br>
 			Choose the company for which you want to configure ZATCA Phase 2.
-			If this is an offline POS setup, enable the option below.
 		</div>
 	`
 				}
@@ -358,12 +459,14 @@ frappe.pages['zatca-wizard'].on_page_load = function (wrapper) {
 													// );
 												},
 												function () {
-													// User selected "No"
+													// User selected "No" — exit the wizard entirely
+													// (there's no dialog to hide any more, this is a
+													// full page, so leave the route instead).
 													frappe.msgprint(
 														__("Setup canceled. Please select another company or exit the wizard.")
 													);
 													selected_company = null;
-													current_dialog.hide();
+													frappe.set_route("");
 												}
 											);
 											// Mark this company as having shown the dialog
@@ -409,18 +512,6 @@ frappe.pages['zatca-wizard'].on_page_load = function (wrapper) {
 				},
 			],
 			primary_action_label: __("Next"),
-			primary_action(values) {
-				if (!selected_company) {
-					frappe.msgprint(
-						__("Please select a company before proceeding.")
-					);
-					return;
-				}
-				slideData[slides_settings[current_slide_index].name] = values;
-				current_slide_index++;
-				current_dialog.hide();
-				render_slide(slides_settings[current_slide_index]);
-			},
 		},
 		{
 			name: "integration_type",
@@ -473,23 +564,6 @@ frappe.pages['zatca-wizard'].on_page_load = function (wrapper) {
 				},
 			],
 			primary_action_label: __("Next"),
-			primary_action(values) {
-				if (!values.integration_type) {
-					frappe.msgprint({
-						title: __("Mandatory Field Missing"),
-						indicator: "red",
-						message: __("Please select an Integration Type to proceed."),
-					});
-					return;
-				}
-
-				// Proceed to the next slide
-				slideData[slides_settings[current_slide_index].name] = values;
-				current_slide_index++;
-				current_dialog.hide();
-				render_slide(slides_settings[current_slide_index]);
-				console.log("Selected Integration Type:", values.integration_type);
-			},
 		},
 
 
@@ -521,7 +595,7 @@ frappe.pages['zatca-wizard'].on_page_load = function (wrapper) {
 				},
 				{
 					fieldname: "vat_number",
-					label: __("VAT Registration No <span style='color:red'>*</span>"),
+					label: __("VAT Registration No"),
 					fieldtype: "Data",
 				},
 				{
@@ -536,7 +610,6 @@ frappe.pages['zatca-wizard'].on_page_load = function (wrapper) {
 					fieldname: "business_category",
 					label: __("Select Business Category"),
 					fieldtype: "Select",
-					reqd: 1,
 					options: [
 						{ label: "Retail Trade", value: "RETAIL" },
 						{ label: "Wholesale Trade", value: "WHOLESALE" },
@@ -656,6 +729,8 @@ frappe.pages['zatca-wizard'].on_page_load = function (wrapper) {
 														current_dialog.fields_dict.created_csr_config.set_value(encodedString);
 														// current_dialog.set_value("created_csr_config", encodedString);
 														// current_dialog.refresh();
+														csrGenerated = true;
+														saveWizardProgress();
 													} else {
 														frappe.msgprint(__("Dialog reference not found."));
 													}
@@ -723,9 +798,10 @@ frappe.pages['zatca-wizard'].on_page_load = function (wrapper) {
 					click: function () {
 						const otpValue = current_dialog.get_value("otp"); // Get the OTP value from the dialog
 						if (!otpValue || otpValue.trim() === "") {
-							frappe.msgprint(__("Please enter the OTP before proceeding."));
+							showFieldError(current_dialog, "otp", __("Please enter the OTP before proceeding."));
 							return;
 						}
+						clearFieldError(current_dialog, "otp");
 
 						if (!selected_company) {
 							frappe.msgprint(__("Please select a company before activating CSID."));
@@ -802,6 +878,8 @@ frappe.pages['zatca-wizard'].on_page_load = function (wrapper) {
 																if (current_dialog) {
 																	current_dialog.set_value("basic_auth_from_csid", encodedString);
 																	current_dialog.refresh();
+																	csidGenerated = true;
+																	saveWizardProgress();
 
 																	frappe.show_alert(
 																		{
@@ -859,175 +937,6 @@ frappe.pages['zatca-wizard'].on_page_load = function (wrapper) {
 			primary_action_label: __("Next")
 		}
 		,
-		// 	{
-		// 		name: "zatca_compliance_check",
-		// 		title: __("ZATCA Compliance Check"),
-		// 		fields: [
-		// 			// {
-		// 			// 	fieldname: "conditions_section",
-		// 			// 	label: __("Compliance Conditions"),
-		// 			// 	fieldtype: "Section Break",
-		// 			// },
-		// 			{
-		// 				fieldtype: "HTML",
-		// 				options: `
-		// 	<div style="
-		// 		background:#f0fdf4;
-		// 		border:1px solid #bbf7d0;
-		// 		border-radius:8px;
-		// 		padding:14px;
-		// 		margin-bottom:12px;
-		// 		font-size:13px;
-		// 	">
-		// 		Run each compliance test below.
-		// 		All checks must pass before moving to production CSID.
-		// 	</div>
-		// `
-		// 			}
-		// 			,
-		// 			{
-		// 				fieldname: "sub_heading",
-		// 				fieldtype: "HTML",
-		// 				options: `<h5 style="color: #777; margin-bottom: 15px; font-weight: normal;">Click all the buttons below to check compliance before proceeding to the next page</h5>`,
-		// 			},
-		// 			{
-		// 				fieldname: "conditions_section",
-		// 				label: __("Compliance Conditions"),
-		// 				fieldtype: "Section Break",
-		// 			},
-		// 			// Dynamically generate fields for conditions
-		// 			...[
-		// 				{ fieldname: "simplified_invoice", label: "Simplified Invoice", complianceType: "1" },
-		// 				{ fieldname: "standard_invoice", label: "Standard Invoice", complianceType: "2" },
-		// 				{ fieldname: "simplified_credit_note", label: "Simplified Credit Note", complianceType: "3" },
-		// 				{ fieldname: "standard_credit_note", label: "Standard Credit Note", complianceType: "4" },
-		// 				{ fieldname: "simplified_debit_note", label: "Simplified Debit Note", complianceType: "5" },
-		// 				{ fieldname: "standard_debit_note", label: "Standard Debit Note", complianceType: "6" },
-		// 			].flatMap((condition) => [
-		// 				{
-		// 					fieldname: `${condition.fieldname}_checkbox`,
-		// 					label: __(condition.label),
-		// 					fieldtype: "Check",
-		// 				},
-		// 				{
-		// 					fieldname: `${condition.fieldname}_button`,
-		// 					label: __(condition.label),
-		// 					fieldtype: "Button",
-		// 					click: function () {
-		// 						if (!selected_company) {
-		// 							frappe.msgprint(__("Please select a company before running compliance checks."));
-		// 							return;
-		// 						}
-		// 						const isOfflinePOS = slideData["select_company_is_offline_pos"];
-		// 						const selectedMachine = slideData["selected_machine"];
-		// 						const doctype = isOfflinePOS ? "ZATCA Multiple Setting" : "Company";
-		// 						const name = isOfflinePOS ? selectedMachine : selected_company;
-
-
-		// 						// Fetch company abbreviation
-		// 						frappe.call({
-		// 							method: "frappe.client.get_value",
-		// 							args: {
-		// 								doctype: "Company",
-		// 								filters: { name: selected_company },
-		// 								fieldname: ["abbr"],
-		// 							},
-		// 							callback: function (res) {
-		// 								if (res && res.message) {
-		// 									const company_abbr = res.message.abbr;
-
-		// 									// Determine the button clicked based on the condition
-		// 									const buttonClicked = `${condition.fieldname}_button`;
-
-		// 									// Call the wizard_button Python function
-		// 									frappe.call({
-		// 										method: "zatca.zatca.wizardbutton.wizard_button",
-		// 										args: {
-		// 											company_abbr: company_abbr,
-		// 											button: buttonClicked,
-		// 											pos: doctype,
-		// 											machine: name
-		// 											// Pass the corresponding button ID
-		// 										},
-		// 										callback: function (response) {
-		// 											console.log("The response From Button-1: ", response);
-		// 											if (response && response.message) {
-		// 												const msg = response.message;
-		// 												const reportingStatus = msg.reportingStatus;
-		// 												const clearanceStatus = msg.clearanceStatus;
-		// 												const warnings = msg.warnings || [];
-
-		// 												// ✅ SUCCESS condition
-		// 												const isSuccess =
-		// 													reportingStatus === "REPORTED" ||
-		// 													clearanceStatus === "CLEARED";
-
-		// 												// Checkbox handling (keep this)
-		// 												current_dialog.set_value(
-		// 													`${condition.fieldname}_checkbox`,
-		// 													isSuccess ? 1 : 0
-		// 												);
-
-		// 												// 🌿 Show success message
-		// 												if (isSuccess) {
-		// 													// frappe.show_alert(
-		// 													// 	{
-		// 													// 		message: __("Invoice compliance check passed."),
-		// 													// 		indicator: "green",
-		// 													// 	},
-		// 													// 	5 // seconds
-		// 													// );
-		// 													frappe.msgprint({
-		// 														title: __("ZATCA Success"),
-		// 														message: __(
-		// 															`✅ Invoice successfully ${clearanceStatus === "CLEARED"
-		// 																? "CLEARED"
-		// 																: "REPORTED"
-		// 															} to ZATCA.`
-		// 														),
-		// 														indicator: "green",
-		// 													});
-		// 												}
-
-		// 												// ⚠️ Show warnings ONLY if they exist
-		// 												if (warnings.length) {
-		// 													frappe.msgprint({
-		// 														title: __("ZATCA Warnings"),
-		// 														message: warnings.map(w => w.message).join("<br><br>"),
-		// 														indicator: "orange",
-		// 													});
-		// 												}
-
-		// 												// ❌ Safety fallback (should never happen)
-		// 												if (!isSuccess && !warnings.length) {
-		// 													frappe.msgprint({
-		// 														title: __("ZATCA Status"),
-		// 														message: __("No confirmation received from ZATCA."),
-		// 														indicator: "blue",
-		// 													});
-		// 												}
-		// 											} else {
-		// 												frappe.msgprint(
-		// 													__(`${condition.label}: No response or unknown error from the API.`)
-		// 												);
-		// 												current_dialog.set_value(`${condition.fieldname}_checkbox`, 0);
-		// 											}
-		// 										},
-		// 									});
-		// 								} else {
-		// 									frappe.msgprint(__("Failed to fetch company abbreviation."));
-		// 								}
-		// 							},
-		// 						});
-		// 					},
-		// 				},
-		// 			]),
-		// 		],
-		// 		primary_action_label: __("Next"),
-
-		// 	},
-
-
 		{
 			name: "final_csid_generation",
 			title: __("Final CSID Generation"),
@@ -1107,6 +1016,8 @@ frappe.pages['zatca-wizard'].on_page_load = function (wrapper) {
 													// Store CSID in textarea (this is fine)
 													current_dialog.set_value("final_auth_csid", csid);
 													current_dialog.refresh();
+													finalCsidGenerated = true;
+													saveWizardProgress();
 
 													// ✅ Show success message ONLY now
 													const successBox = document.getElementById("final-csid-success");
@@ -1222,241 +1133,239 @@ frappe.pages['zatca-wizard'].on_page_load = function (wrapper) {
 		},
 	];
 
+	// --- Persistent full-page wizard shell ------------------------------
+	// Rendered once. Only the fields inside `.zatca-wizard-fields` get
+	// swapped per step, so navigating feels like updating one screen rather
+	// than closing and reopening separate popups.
+	const $shell = $(`
+		<div class="zatca-wizard-shell">
+			<style>
+				.zatca-wizard-shell { max-width: 900px; margin: 0 auto; }
+				.zatca-wizard-topbar { display:flex; align-items:center; gap:10px; padding:16px 0 12px 0; }
+				.zatca-wizard-topbar img { height:28px; }
+				.zatca-wizard-topbar span { font-size:16px; font-weight:600; color:var(--text-color, #1f2937); }
+				.zatca-steps-row { display:flex; align-items:flex-start; padding:14px 16px; background:#f9fafb; border:1px solid #e2e2e2; border-radius:8px; margin-bottom:20px; }
+				.zatca-step-item { display:flex; flex-direction:column; align-items:center; gap:4px; flex-shrink:0; }
+				.zatca-step { width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:11px;font-weight:600;flex-shrink:0; }
+				.zatca-step-done { background:#2e844a;color:#fff; }
+				.zatca-step-active { background:#2490ef;color:#fff;box-shadow:0 0 0 3px rgba(36,144,239,.25); }
+				.zatca-step-upcoming { background:#e2e2e2;color:#8d99a6; }
+				.zatca-step-label { font-size:10px; text-align:center; max-width:76px; line-height:1.2; }
+				.zatca-step-label-done, .zatca-step-label-active { color:#1f2937; font-weight:500; }
+				.zatca-step-label-upcoming { color:#8d99a6; }
+				.zatca-step-sep { flex:1; height:2px; background:#e2e2e2; margin-top:11px; }
+				.zatca-field-invalid { border-color:#e03131 !important; box-shadow:0 0 0 1px rgba(224,49,49,.15) !important; }
+				.zatca-wizard-fields { min-height: 240px; padding-bottom: 16px; }
+				.zatca-wizard-footer { display:flex; justify-content:space-between; align-items:center; padding:16px 0 32px 0; border-top:1px solid #e2e2e2; margin-top:8px; position:sticky; bottom:0; background:var(--fg-color, #fff); }
+			</style>
+			<div class="zatca-wizard-topbar">
+				<img src="/assets/zatca/images/zatca-logo.png" alt="Sowaan" />
+				<span>${__("ZATCA Phase 2 Setup")}</span>
+			</div>
+			<div class="zatca-steps-row"></div>
+			<div class="zatca-wizard-fields"></div>
+			<div class="zatca-wizard-footer">
+				<button class="btn btn-default zatca-prev-btn">${__("Previous")}</button>
+				<button class="btn btn-primary zatca-next-btn">${__("Next")}</button>
+			</div>
+		</div>
+	`).appendTo(page.body);
+
+	const $wizard_steps_row = $shell.find(".zatca-steps-row");
+	const $wizard_fields = $shell.find(".zatca-wizard-fields");
+	const $prev_btn = $shell.find(".zatca-prev-btn");
+	const $next_btn = $shell.find(".zatca-next-btn");
+
 	function render_slide(slide) {
-		const dialog = new frappe.ui.Dialog({
-			title: slide.title,
+		$wizard_fields.empty();
+
+		const field_group = new frappe.ui.FieldGroup({
 			fields: slide.fields,
-			primary_action_label: slide.primary_action_label,
-			primary_action(values) {
-				slideData[slides_settings[current_slide_index].name] = values;
-				if (slides_settings[current_slide_index].name === "final_csid_generation") {
-					
-					// Set 'custom_zatca_invoice_enabled' to 1 in Company
-					frappe.call({
-						method: "frappe.client.set_value",
-						args: {
-							doctype: "Company",
-							name: selected_company,  // Ensure 'selected_company' has the current company name
-							fieldname: "custom_zatca_invoice_enabled",
-							value: 1,
-						},
-						callback: function (response) {
-							if (response && response.message) {
-								console.log(__("✅ 'ZATCA Invoice Enabled' has been activated for the company."));
-							} else {
-								frappe.msgprint(__("⚠️ Failed to enable 'ZATCA Invoice'. Please check logs."));
-							}
-
-							// Proceed to next slide after setting the value
-
-						}
-					});
-					dialog.fields_dict.final_csid_message.$wrapper.hide();
-				}
-
-				// ✅ Helper function to move to the next slide
-
-
-				// if (slide.name === "zatca_compliance_check") {
-				// 	console.log("Starting validation for compliance checks..."); // Debug log
-
-				// 	let allChecked = true;
-				// 	const conditions = [
-				// 		"simplified_invoice",
-				// 		"standard_invoice",
-				// 		"simplified_credit_note",
-				// 		"standard_credit_note",
-				// 		"simplified_debit_note",
-				// 		"standard_debit_note",
-				// 	];
-
-				// 	// ✅ Loop through each checkbox and verify if all are checked (value == 1)
-				// 	conditions.forEach((condition) => {
-				// 		const fieldname = `${condition}_checkbox`;
-				// 		const checkboxValue = dialog.get_value(fieldname); // Use dialog.get_value()
-
-				// 		// Debug logs for each checkbox
-				// 		console.log(`Checking field: ${fieldname} | Value: ${checkboxValue}`);
-
-				// 		if (checkboxValue !== 1) {
-				// 			allChecked = false;
-				// 			console.log(`❌ ${fieldname} is not checked.`);
-				// 		} else {
-				// 			console.log(`✅ ${fieldname} is checked.`);
-				// 		}
-				// 	});
-
-				// 	// ✅ Block Next if any checkbox is not checked
-				// 	if (!allChecked) {
-				// 		console.log("❌ Validation failed: Not all checkboxes are checked.");
-				// 		frappe.msgprint(__("⚠️ Please complete all compliance checks before proceeding."));
-				// 		return;
-				// 	}
-
-				// 	// ✅ Allow Next if all checkboxes are checked
-				// 	console.log("✅ All checkboxes are checked. Proceeding to the next page...");
-				// 	// frappe.msgprint(__("✅ All compliance checks passed. Proceeding to the next page..."));
-				// }
-
-
-				if (slide.name === "zatca_compliance_check") {
-					const hasRunAny = Object.keys(complianceState).length > 0;
-
-					if (!hasRunAny) {
-						frappe.msgprint(__("Please run the compliance checks first."));
-						return;
-					}
-
-					const allPassed = COMPLIANCE_TESTS.every(
-						t => complianceState[t.key] === true
-					);
-
-					if (!allPassed) {
-						frappe.msgprint(
-							__("⚠️ All compliance checks must pass before continuing.")
-						);
-						return;
-					}
-				}
-
-
-				if (slide.name === "integration_type") {
-					if (!values.integration_type) {
-						frappe.msgprint({
-							title: __("Mandatory Field Missing"),
-							indicator: "red",
-							message: __("Please select an Integration Type to proceed."),
-						});
-						return;
-					}
-				}
-				if (slide.name === "select_company") {
-					if (!values.company) {
-						frappe.msgprint({
-							title: __("Mandatory Field Missing"),
-							indicator: "red",
-							message: __("Please select a Company to proceed."),
-						});
-						return;
-					}
-					fetch_company_details(values.company);
-				}
-
-				if (slide.name === "company_details") {
-					const savedData = slideData[slide.name];
-					if (savedData) {
-						dialog.set_values(savedData);
-					}
-					if (!values.vat_number || !values.city || !values.business_category) {
-						let missing_fields = [];
-
-						if (!values.vat_number) {
-							missing_fields.push("VAT Number");
-						}
-						if (!values.city) {
-							missing_fields.push("City");
-						}
-						if (!values.business_category) {
-							missing_fields.push("Business Category");
-						}
-
-						frappe.msgprint({
-							title: __("Mandatory Fields Missing"),
-							indicator: "red",
-							message: __(`The following field(s) are required: ${missing_fields.join(", ")}. Please fill them to proceed.`),
-						});
-
-						return;
-					}
-					frappe.call({
-						method: "frappe.client.set_value",
-						args: {
-							doctype: "Company",
-							name: selected_company,  // Ensure 'selected_company' has the current company
-							fieldname: {
-								"custom_zatca__location_for_csr_configuratoin": values.city,  // Save city
-								"custom_zatca__company_category_for_csr_configuration": values.business_category  // Save business category
-							},
-						},
-						callback: function (response) {
-							if (response && response.message) {
-								console.log(__("✅ Company details have been updated successfully."));
-							} else {
-								frappe.msgprint(__("⚠️ Failed to update Company details. Please try again."));
-							}
-						}
-					});
-
-
-					generate_csr_config(dialog.get_values());
-				}
-
-
-				if (current_slide_index < slides_settings.length - 1) {
-					current_slide_index++;
-					dialog.hide();
-					render_slide(slides_settings[current_slide_index]);
-				} else {
-					submit_wizard(values);
-					dialog.hide();
-				}
-			},
-			secondary_action_label: current_slide_index > 0 ? __("Previous") : null,
-			secondary_action() {
-				if (current_slide_index > 0) {
-					slideData[slides_settings[current_slide_index].name] = current_dialog.get_values();
-					current_slide_index--;
-					dialog.hide();
-					render_slide(slides_settings[current_slide_index]);
-				}
-			},
+			parent: $wizard_fields[0],
 		});
+		field_group.make();
+		current_dialog = field_group;
 
 		if (slide.name === "company_details") {
 			// Pre-fill data when arriving at company_details slide
 			if (selected_company) {
-				load_company_related_data(selected_company, dialog);
+				load_company_related_data(selected_company, field_group);
 			}
 		}
 
 		if (slideData[slide.name]) {
-			dialog.set_values(slideData[slide.name]);
+			field_group.set_values(slideData[slide.name]);
 		}
-		current_dialog = dialog;
 
-		dialog.show();
+		updateStepIndicator(current_slide_index);
 		if (slide.name === "zatca_compliance_check") {
-			renderComplianceTable(dialog);
+			renderComplianceTable(field_group);
 		}
-		dialog.$wrapper.on('shown.bs.modal', function () {
-			applyTooltips({ dialog }, unifiedTooltips);
-		});
-		setTimeout(() => {
-		dialog.$wrapper
+		applyTooltips({ dialog: field_group }, unifiedTooltips);
+
+		field_group.wrapper
 			.find('button[data-fieldname="activate_csr"]')
 			.addClass("btn-primary btn-lg");
 
-		dialog.$wrapper
+		field_group.wrapper
 			.find('button[data-fieldname="activate_csid"]')
 			.addClass("btn-warning btn-lg");
 
-		dialog.$wrapper
+		field_group.wrapper
 			.find('button[data-fieldname="final_csid"]')
 			.addClass("btn-danger btn-lg");
-		}, 0);
-		// Remove any tooltips from previous dialogs
-		dialog.$wrapper.on('hidden.bs.modal', function () {
-			removeTooltips();
-		});
-		if (slide.name === "create_csr") {
-			const doctype = slideData["select_company_is_offline_pos"] ? "ZATCA Multiple Setting" : "Company";
-			const name = slideData["select_company_is_offline_pos"] ? slideData["selected_machine"] : selected_company;
-			dialog.set_value("csr_config_box", csr_config.replace(/^\s+|\s+$/gm, ""));
 
+		if (slide.name === "create_csr") {
+			field_group.set_value("csr_config_box", csr_config.replace(/^\s+|\s+$/gm, ""));
+		}
+
+		$prev_btn.toggle(current_slide_index > 0);
+		$next_btn.text(slide.primary_action_label || __("Next"));
+
+		$shell[0].scrollIntoView({ block: "start", behavior: "instant" });
+	}
+
+	function go_to_next_step() {
+		const slide = slides_settings[current_slide_index];
+		const values = current_dialog.get_values(true); // ignore_errors: validated manually below
+
+		slideData[slide.name] = values;
+		if (slide.name === "final_csid_generation") {
+
+			// Set 'custom_zatca_invoice_enabled' to 1 in Company
+			frappe.call({
+				method: "frappe.client.set_value",
+				args: {
+					doctype: "Company",
+					name: selected_company,  // Ensure 'selected_company' has the current company name
+					fieldname: "custom_zatca_invoice_enabled",
+					value: 1,
+				},
+				callback: function (response) {
+					if (response && response.message) {
+						console.log(__("✅ 'ZATCA Invoice Enabled' has been activated for the company."));
+					} else {
+						frappe.msgprint(__("⚠️ Failed to enable 'ZATCA Invoice'. Please check logs."));
+					}
+				}
+			});
+			current_dialog.fields_dict.final_csid_message.$wrapper.hide();
+		}
+
+		if (slide.name === "zatca_compliance_check") {
+			const hasRunAny = Object.keys(complianceState).length > 0;
+
+			if (!hasRunAny) {
+				frappe.msgprint(__("Please run the compliance checks first."));
+				return;
+			}
+
+			const allPassed = COMPLIANCE_TESTS.every(
+				t => complianceState[t.key] === true
+			);
+
+			if (!allPassed) {
+				frappe.msgprint(
+					__("⚠️ All compliance checks must pass before continuing.")
+				);
+				return;
+			}
+		}
+
+		if (slide.name === "create_csr" && !csrGenerated) {
+			frappe.msgprint(__("Please click \"Create CSR\" before continuing."));
+			return;
+		}
+
+		if (slide.name === "enter_otp" && !csidGenerated) {
+			frappe.msgprint(__("Please click \"Activate Compliance CSID\" before continuing."));
+			return;
+		}
+
+		if (slide.name === "final_csid_generation" && !finalCsidGenerated) {
+			frappe.msgprint(__("Please click \"Generate Final CSIDs\" before continuing."));
+			return;
+		}
+
+		if (slide.name === "integration_type") {
+			if (!values.integration_type) {
+				showFieldError(current_dialog, "integration_type", __("Please select an integration type."));
+				return;
+			}
+			clearFieldError(current_dialog, "integration_type");
+		}
+		if (slide.name === "select_company") {
+			if (!values.company) {
+				showFieldError(current_dialog, "company", __("Please select a company to proceed."));
+				return;
+			}
+			clearFieldError(current_dialog, "company");
+			fetch_company_details(values.company);
+		}
+
+		if (slide.name === "company_details") {
+			const savedData = slideData[slide.name];
+			if (savedData) {
+				current_dialog.set_values(savedData);
+			}
+			clearFieldErrors(current_dialog, ["vat_number", "city", "business_category"]);
+			if (!values.vat_number || !values.city || !values.business_category) {
+				if (!values.vat_number) {
+					showFieldError(current_dialog, "vat_number", __("VAT Registration No is required."));
+				}
+				if (!values.city) {
+					showFieldError(current_dialog, "city", __("City is required."));
+				}
+				if (!values.business_category) {
+					showFieldError(current_dialog, "business_category", __("Please select a business category."));
+				}
+				return;
+			}
+			frappe.call({
+				method: "frappe.client.set_value",
+				args: {
+					doctype: "Company",
+					name: selected_company,  // Ensure 'selected_company' has the current company
+					fieldname: {
+						"custom_zatca__location_for_csr_configuratoin": values.city,  // Save city
+						"custom_zatca__company_category_for_csr_configuration": values.business_category  // Save business category
+					},
+				},
+				callback: function (response) {
+					if (response && response.message) {
+						console.log(__("✅ Company details have been updated successfully."));
+					} else {
+						frappe.msgprint(__("⚠️ Failed to update Company details. Please try again."));
+					}
+				}
+			});
+
+
+			generate_csr_config(current_dialog.get_values(true));
 		}
 
 
+		if (current_slide_index < slides_settings.length - 1) {
+			current_slide_index++;
+			saveWizardProgress();
+			render_slide(slides_settings[current_slide_index]);
+		} else {
+			submit_wizard(values);
+			clearWizardProgress();
+		}
 	}
+
+	function go_to_previous_step() {
+		if (current_slide_index > 0) {
+			slideData[slides_settings[current_slide_index].name] = current_dialog.get_values(true);
+			current_slide_index--;
+			saveWizardProgress();
+			render_slide(slides_settings[current_slide_index]);
+		}
+	}
+
+	$next_btn.on("click", go_to_next_step);
+	$prev_btn.on("click", go_to_previous_step);
 
 
 	function fetch_company_details(company) {
@@ -1501,20 +1410,40 @@ frappe.pages['zatca-wizard'].on_page_load = function (wrapper) {
 		frappe.msgprint(__("Thank You! Successfully completed ZATCA Phase 2 integration."));
 	}
 
-	render_slide(slides_settings[current_slide_index]);
+	function prefill_default_company() {
+		const default_company = frappe.defaults.get_user_default("Company");
+		if (default_company && current_dialog && !selected_company) {
+			current_dialog.set_value("company", default_company);
+			selected_company = default_company;
 
-	const default_company = frappe.defaults.get_user_default("Company");
-
-	if (default_company && current_dialog) {
-		current_dialog.set_value("company", default_company);
-		selected_company = default_company;
-
-		load_company_related_data(default_company, current_dialog);
+			load_company_related_data(default_company, current_dialog);
+		}
 	}
 
-
-	function removeTooltips() {
-		$('.tooltip-container').remove();
+	const saved_progress = loadWizardProgress();
+	if (saved_progress && saved_progress.current_slide_index > 0) {
+		frappe.confirm(
+			__("You have an in-progress ZATCA setup. Resume where you left off?"),
+			() => {
+				current_slide_index = saved_progress.current_slide_index;
+				slideData = saved_progress.slideData || {};
+				selected_company = saved_progress.selected_company || null;
+				csrGenerated = !!saved_progress.csrGenerated;
+				csidGenerated = !!saved_progress.csidGenerated;
+				finalCsidGenerated = !!saved_progress.finalCsidGenerated;
+				Object.assign(complianceState, saved_progress.complianceState || {});
+				render_slide(slides_settings[current_slide_index]);
+				prefill_default_company();
+			},
+			() => {
+				clearWizardProgress();
+				render_slide(slides_settings[current_slide_index]);
+				prefill_default_company();
+			}
+		);
+	} else {
+		render_slide(slides_settings[current_slide_index]);
+		prefill_default_company();
 	}
 };
 
