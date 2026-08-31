@@ -1,0 +1,71 @@
+Company abbreviation is missing.,اختصار الشركة مفقود.
+ZATCA Warnings,تحذيرات ZATCA
+ZATCA Wizard (Sowaan),معالج ZATCA (سوان)
+Start,ابدأ
+Select Company,اختر الشركة
+ZATCA setup already exists for this company. Do you want to override the existing setup?,يوجد إعداد ZATCA مسبق لهذه الشركة. هل تريد استبدال الإعداد الحالي؟
+Setup canceled. Please select another company or exit the wizard.,تم إلغاء الإعداد. الرجاء اختيار شركة أخرى أو الخروج من المعالج.
+Is Offline POS?,هل هذا نظام نقاط بيع غير متصل؟
+Select Machine,اختر الجهاز
+Next,التالي
+ZATCA Integration Type,نوع تكامل ZATCA
+Integration Type,نوع التكامل
+Error,خطأ
+Please select a company first.,الرجاء اختيار شركة أولاً.
+Company Details,بيانات الشركة
+Company Name,اسم الشركة
+VAT Registration No,الرقم الضريبي
+Building Number,رقم المبنى
+City,المدينة
+ZIP Code,الرمز البريدي
+Select Business Category,اختر النشاط التجاري
+Create CSR,إنشاء CSR
+Generated CSR (Read-only),CSR الذي تم إنشاؤه (للقراءة فقط)
+Please select a company before creating CSR.,الرجاء اختيار شركة قبل إنشاء CSR.
+Please select a machine for offline POS.,الرجاء اختيار جهاز لنقاط البيع غير المتصلة.
+Dialog reference not found.,لم يتم العثور على مرجع النافذة.
+Failed to create CSR. Please check the logs.,فشل إنشاء CSR. الرجاء مراجعة السجلات.
+Invalid portal type or company abbreviation.,نوع البوابة أو اختصار الشركة غير صالح.
+Failed to fetch company abbreviation.,فشل جلب اختصار الشركة.
+Generated CSR Data,بيانات CSR التي تم إنشاؤها
+Enter OTP,إدخال رمز التحقق
+OTP,رمز التحقق
+Activate Compliance CSID,تفعيل CSID الامتثال
+Please enter the OTP before proceeding.,الرجاء إدخال رمز التحقق قبل المتابعة.
+Please select a company before activating CSID.,الرجاء اختيار شركة قبل تفعيل CSID.
+CSID generated successfully,تم إنشاء CSID بنجاح
+Failed to generate CSID. Please check the logs.,فشل إنشاء CSID. الرجاء مراجعة السجلات.
+Failed to save OTP. Please try again.,فشل حفظ رمز التحقق. الرجاء المحاولة مرة أخرى.
+Basic Auth from CSID,بيانات الاعتماد الأساسية من CSID
+ZATCA Compliance Check,فحص امتثال ZATCA
+Final CSID Generation,إنشاء CSID النهائي
+Generate Final CSIDs,إنشاء CSID النهائي
+CSID copied to clipboard,تم نسخ CSID إلى الحافظة
+Production CSID generated successfully,تم إنشاء CSID الإنتاج بنجاح
+Final Auth CSID,CSID الاعتماد النهائي
+Steps to Follow Next,الخطوات التالية
+Submit,إرسال
+ZATCA Phase 2 Setup,إعداد المرحلة الثانية من ZATCA
+Previous,السابق
+✅ 'ZATCA Invoice Enabled' has been activated for the company.,✅ تم تفعيل خيار 'تمكين فوترة ZATCA' لهذه الشركة.
+⚠️ Failed to enable 'ZATCA Invoice'. Please check logs.,⚠️ فشل تفعيل 'فوترة ZATCA'. الرجاء مراجعة السجلات.
+Please run the compliance checks first.,الرجاء تشغيل فحوصات الامتثال أولاً.
+⚠️ All compliance checks must pass before continuing.,⚠️ يجب اجتياز جميع فحوصات الامتثال قبل المتابعة.
+"Please click ""Create CSR"" before continuing.","الرجاء الضغط على ""إنشاء CSR"" قبل المتابعة."
+"Please click ""Activate Compliance CSID"" before continuing.","الرجاء الضغط على ""تفعيل CSID الامتثال"" قبل المتابعة."
+"Please click ""Generate Final CSIDs"" before continuing.","الرجاء الضغط على ""إنشاء CSID النهائي"" قبل المتابعة."
+Please select an integration type.,الرجاء اختيار نوع التكامل.
+Please select a company to proceed.,الرجاء اختيار شركة للمتابعة.
+VAT Registration No is required.,الرقم الضريبي مطلوب.
+City is required.,المدينة مطلوبة.
+Please select a business category.,الرجاء اختيار النشاط التجاري.
+✅ Company details have been updated successfully.,✅ تم تحديث بيانات الشركة بنجاح.
+⚠️ Failed to update Company details. Please try again.,⚠️ فشل تحديث بيانات الشركة. الرجاء المحاولة مرة أخرى.
+ZATCA Phase 2 onboarding completed successfully.,تم إكمال إعداد المرحلة الثانية من ZATCA بنجاح.
+Thank You! Successfully completed ZATCA Phase 2 integration.,شكراً لك! تم إكمال التكامل مع المرحلة الثانية من ZATCA بنجاح.
+You have an in-progress ZATCA setup. Resume where you left off?,لديك عملية إعداد ZATCA قيد التنفيذ. هل تريد المتابعة من حيث توقفت؟
+Set up ZATCA,إعداد ZATCA
+Remind me later,ذكرني لاحقاً
+"company ""{0}""","الشركة ""{0}"""
+{0} companies,{0} شركات
+ZATCA e-invoicing isn't set up yet for {0}. Complete the wizard to enable compliant e-invoicing.,لم يتم إعداد الفوترة الإلكترونية لـ ZATCA بعد لـ {0}. أكمل المعالج لتفعيل الفوترة الإلكترونية المتوافقة.

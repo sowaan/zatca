@@ -28,8 +28,9 @@ function show_zatca_setup_banner(companies, dismiss_key) {
 
 	const label =
 		companies.length === 1
-			? `company "${frappe.utils.escape_html(companies[0])}"`
-			: `${companies.length} companies`;
+			? __('company "{0}"', [frappe.utils.escape_html(companies[0])])
+			: __("{0} companies", [companies.length]);
+	const message = __("ZATCA e-invoicing isn't set up yet for {0}. Complete the wizard to enable compliant e-invoicing.", [label]);
 
 	// `.main-section` is a plain block scroll container (header, #body, footer
 	// stacked in normal flow, not flex/grid) — inserting as a sibling right
@@ -44,7 +45,7 @@ function show_zatca_setup_banner(companies, dismiss_key) {
 			align-items:center;justify-content:space-between;
 			font-size:13px;gap:12px;flex-wrap:wrap;
 		">
-			<span>ZATCA e-invoicing isn't set up yet for ${label}. Complete the wizard to enable compliant e-invoicing.</span>
+			<span>${message}</span>
 			<span style="white-space:nowrap;">
 				<button class="btn btn-sm btn-primary" id="zatca-banner-setup" style="margin-right:8px;">${__("Set up ZATCA")}</button>
 				<button class="btn btn-sm btn-secondary" id="zatca-banner-dismiss">${__("Remind me later")}</button>
