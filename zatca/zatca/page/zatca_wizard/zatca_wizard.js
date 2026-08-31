@@ -1,11 +1,11 @@
 frappe.pages['zatca-wizard'].on_page_load = function (wrapper) {
 	const COMPLIANCE_TESTS = [
-		{ key: "simplified_invoice", label: "Simplified Invoice", code: "1" },
-		{ key: "standard_invoice", label: "Standard Invoice", code: "2" },
-		{ key: "simplified_credit_note", label: "Simplified Credit Note", code: "3" },
-		{ key: "standard_credit_note", label: "Standard Credit Note", code: "4" },
-		{ key: "simplified_debit_note", label: "Simplified Debit Note", code: "5" },
-		{ key: "standard_debit_note", label: "Standard Debit Note", code: "6" },
+		{ key: "simplified_invoice", label: __("Simplified Invoice"), code: "1" },
+		{ key: "standard_invoice", label: __("Standard Invoice"), code: "2" },
+		{ key: "simplified_credit_note", label: __("Simplified Credit Note"), code: "3" },
+		{ key: "standard_credit_note", label: __("Standard Credit Note"), code: "4" },
+		{ key: "simplified_debit_note", label: __("Simplified Debit Note"), code: "5" },
+		{ key: "standard_debit_note", label: __("Standard Debit Note"), code: "6" },
 	];
 
 	function renderComplianceTable(dialog) {
@@ -18,7 +18,7 @@ frappe.pages['zatca-wizard'].on_page_load = function (wrapper) {
       <td class="text-center">
         <button
           class="btn btn-sm btn-light border"
-          title="Run Test"
+          title="${__("Run Test")}"
           onclick="runComplianceTest('${t.key}')"
           style="padding:4px 10px;border-radius:6px;"
         >
@@ -30,7 +30,7 @@ frappe.pages['zatca-wizard'].on_page_load = function (wrapper) {
       <td id="${t.key}-clearance" class="text-muted">–</td>
 
       <td id="${t.key}-status">
-        <span class="badge bg-secondary">Pending</span>
+        <span class="badge bg-secondary">${__("Pending")}</span>
       </td>
     </tr>
   `).join("");
@@ -45,11 +45,11 @@ frappe.pages['zatca-wizard'].on_page_load = function (wrapper) {
       <table class="table table-sm align-middle mb-0">
         <thead style="background:#f9fafb;">
           <tr>
-            <th>Test Case</th>
-            <th class="text-center">Run</th>
-            <th>Reporting</th>
-            <th>Clearance</th>
-            <th>Status</th>
+            <th>${__("Test Case")}</th>
+            <th class="text-center">${__("Run")}</th>
+            <th>${__("Reporting")}</th>
+            <th>${__("Clearance")}</th>
+            <th>${__("Status")}</th>
           </tr>
         </thead>
         <tbody>${rows}</tbody>
@@ -67,7 +67,7 @@ frappe.pages['zatca-wizard'].on_page_load = function (wrapper) {
 		if (statusCell) {
 			statusCell.innerHTML = `
   <span class="badge bg-info">
-    <i class="fa fa-spinner fa-spin"></i> Running
+    <i class="fa fa-spinner fa-spin"></i> ${__("Running")}
   </span>
 `;
 
@@ -116,8 +116,8 @@ frappe.pages['zatca-wizard'].on_page_load = function (wrapper) {
 						complianceState[key] = success;
 
 						statusCell.innerHTML = success
-							? `<span class="badge bg-success">✔ Passed</span>`
-							: `<span class="badge bg-danger">✖ Failed</span>`;
+							? `<span class="badge bg-success">✔ ${__("Passed")}</span>`
+							: `<span class="badge bg-danger">✖ ${__("Failed")}</span>`;
 						const row = document.getElementById(`row-${key}`);
 						row.style.background = success ? "#f0fdf4" : "#fef2f2";
 						if (!success && msg.warnings?.length) {
@@ -307,15 +307,15 @@ frappe.pages['zatca-wizard'].on_page_load = function (wrapper) {
 	}
 
 	const SLIDE_STEP_LABELS = [
-		"Welcome",
-		"Select Company",
-		"Integration Type",
-		"Company Details",
-		"Create CSR",
-		"Enter OTP",
-		"Compliance Check",
-		"Final CSID",
-		"Steps to Follow",
+		__("Welcome"),
+		__("Select Company"),
+		__("Integration Type"),
+		__("Company Details"),
+		__("Create CSR"),
+		__("Enter OTP"),
+		__("Compliance Check"),
+		__("Final CSID"),
+		__("Steps to Follow"),
 	];
 
 	function updateStepIndicator(index) {
@@ -377,7 +377,7 @@ frappe.pages['zatca-wizard'].on_page_load = function (wrapper) {
 									font-weight: 600;
 									color: #1f2937;
 								">
-									ZATCA Phase 2 Wizard
+									${__("ZATCA Phase 2 Wizard")}
 								</h2>
 
 								<!-- Subtitle -->
@@ -387,9 +387,8 @@ frappe.pages['zatca-wizard'].on_page_load = function (wrapper) {
 									color: #6b7280;
 									line-height: 1.6;
 								">
-									This wizard will guide you step by step to complete the
-									<strong>ZATCA Phase 2 Integration</strong> successfully.<br>
-									Please ensure all information is accurate before proceeding.
+									${__("This wizard will guide you step by step to complete the <strong>ZATCA Phase 2 Integration</strong> successfully.")}<br>
+									${__("Please ensure all information is accurate before proceeding.")}
 								</p>
 							</div>
 						</div>
@@ -414,8 +413,8 @@ frappe.pages['zatca-wizard'].on_page_load = function (wrapper) {
 			margin-bottom:12px;
 			font-size:13px;
 		">
-			<strong>Company Selection</strong><br>
-			Choose the company for which you want to configure ZATCA Phase 2.
+			<strong>${__("Company Selection")}</strong><br>
+			${__("Choose the company for which you want to configure ZATCA Phase 2.")}
 		</div>
 	`
 				}
@@ -526,9 +525,9 @@ frappe.pages['zatca-wizard'].on_page_load = function (wrapper) {
 			margin-bottom:10px;
 			padding-left:18px;
 		">
-			<li><strong>Simulation</strong> – For testing without ZATCA APIs</li>
-			<li><strong>Sandbox</strong> – ZATCA test environment</li>
-			<li><strong>Production</strong> – Live ZATCA integration</li>
+			<li><strong>${__("Simulation")}</strong> – ${__("For testing without ZATCA APIs")}</li>
+			<li><strong>${__("Sandbox")}</strong> – ${__("ZATCA test environment")}</li>
+			<li><strong>${__("Production")}</strong> – ${__("Live ZATCA integration")}</li>
 		</ul>
 	`
 				}
@@ -582,8 +581,8 @@ frappe.pages['zatca-wizard'].on_page_load = function (wrapper) {
 			margin-bottom:12px;
 			font-size:13px;
 		">
-			<strong>Important:</strong>
-			Ensure VAT and address details exactly match your ZATCA registration.
+			<strong>${__("Important:")}</strong>
+			${__("Ensure VAT and address details exactly match your ZATCA registration.")}
 		</div>
 	`
 				},
@@ -647,8 +646,8 @@ frappe.pages['zatca-wizard'].on_page_load = function (wrapper) {
 							margin-bottom:12px;
 							font-size:13px;
 						">
-							This step generates a <strong>Cryptographic CSR</strong> required by ZATCA.
-							Click the button below and wait for the generated data.
+							${__("This step generates a <strong>Cryptographic CSR</strong> required by ZATCA.")}
+							${__("Click the button below and wait for the generated data.")}
 						</div>
 					`
 				}
@@ -779,8 +778,8 @@ frappe.pages['zatca-wizard'].on_page_load = function (wrapper) {
 			margin-bottom:12px;
 			font-size:13px;
 		">
-			<strong>OTP Required</strong><br>
-			Enter the OTP received from ZATCA portal. This OTP can be used only once.
+			<strong>${__("OTP Required")}</strong><br>
+			${__("Enter the OTP received from ZATCA portal. This OTP can be used only once.")}
 		</div>
 	`
 				}
@@ -952,9 +951,9 @@ frappe.pages['zatca-wizard'].on_page_load = function (wrapper) {
 			margin-bottom:12px;
 			font-size:13px;
 		">
-			<strong>Final Step:</strong>
-			This will generate your <strong>Production CSID</strong>.
-			Once generated, invoices will be sent to ZATCA live.
+			<strong>${__("Final Step:")}</strong>
+			${__("This will generate your <strong>Production CSID</strong>.")}
+			${__("Once generated, invoices will be sent to ZATCA live.")}
 		</div>
 	`
 				}
@@ -1080,11 +1079,11 @@ frappe.pages['zatca-wizard'].on_page_load = function (wrapper) {
         font-size:13px;
       "
     >
-      <strong>✅ Production CSID Generated</strong><br>
-      Your system is now live with ZATCA.<br><br>
+      <strong>✅ ${__("Production CSID Generated")}</strong><br>
+      ${__("Your system is now live with ZATCA.")}<br><br>
 
       <button class="btn btn-sm btn-primary" id="copy-final-csid">
-        Copy CSID
+        ${__("Copy CSID")}
       </button>
     </div>
   `
@@ -1115,14 +1114,14 @@ frappe.pages['zatca-wizard'].on_page_load = function (wrapper) {
 								box-shadow:0 8px 24px rgba(0,0,0,0.08);
 								text-align:center;
 							">
-								<h2 style="color:#16a34a; margin-bottom:10px;">✅ Success</h2>
+								<h2 style="color:#16a34a; margin-bottom:10px;">✅ ${__("Success")}</h2>
 								<p style="font-size:14px; color:#374151;">
-									ZATCA Phase-2 onboarding is now complete.
+									${__("ZATCA Phase-2 onboarding is now complete.")}
 								</p>
 								<hr style="margin:16px 0;">
 								<p style="font-size:13px; color:#6b7280;">
-									• Invoices will be sent automatically upon submission<br>
-									• You can update settings from <strong>Company → ZATCA Settings</strong>
+									• ${__("Invoices will be sent automatically upon submission")}<br>
+									• ${__("You can update settings from <strong>Company → ZATCA Settings</strong>")}
 								</p>
 							</div>
 						</div>

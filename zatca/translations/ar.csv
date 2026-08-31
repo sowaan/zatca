@@ -69,3 +69,50 @@ Remind me later,ذكرني لاحقاً
 "company ""{0}""","الشركة ""{0}"""
 {0} companies,{0} شركات
 ZATCA e-invoicing isn't set up yet for {0}. Complete the wizard to enable compliant e-invoicing.,لم يتم إعداد الفوترة الإلكترونية لـ ZATCA بعد لـ {0}. أكمل المعالج لتفعيل الفوترة الإلكترونية المتوافقة.
+Welcome,مرحباً
+Compliance Check,فحص الامتثال
+Final CSID,CSID النهائي
+Steps to Follow,الخطوات التالية
+ZATCA Phase 2 Wizard,معالج المرحلة الثانية من ZATCA
+This wizard will guide you step by step to complete the <strong>ZATCA Phase 2 Integration</strong> successfully.,سيرشدك هذا المعالج خطوة بخطوة لإكمال <strong>تكامل المرحلة الثانية من ZATCA</strong> بنجاح.
+Please ensure all information is accurate before proceeding.,الرجاء التأكد من دقة جميع المعلومات قبل المتابعة.
+Company Selection,اختيار الشركة
+Choose the company for which you want to configure ZATCA Phase 2.,اختر الشركة التي تريد إعداد المرحلة الثانية من ZATCA لها.
+Simulation,المحاكاة
+For testing without ZATCA APIs,للاختبار بدون واجهات برمجة ZATCA
+Sandbox,بيئة الاختبار (Sandbox)
+ZATCA test environment,بيئة اختبار ZATCA
+Production,الإنتاج
+Live ZATCA integration,تكامل ZATCA المباشر (الإنتاج)
+Important:,هام:
+Ensure VAT and address details exactly match your ZATCA registration.,تأكد من مطابقة الرقم الضريبي وبيانات العنوان تماماً لتسجيلك لدى ZATCA.
+This step generates a <strong>Cryptographic CSR</strong> required by ZATCA.,تُنشئ هذه الخطوة <strong>طلب توقيع الشهادة (CSR)</strong> المطلوب من قبل ZATCA.
+Click the button below and wait for the generated data.,اضغط على الزر أدناه وانتظر البيانات المُنشأة.
+OTP Required,رمز التحقق مطلوب
+Enter the OTP received from ZATCA portal. This OTP can be used only once.,أدخل رمز التحقق المستلم من بوابة ZATCA. يمكن استخدام هذا الرمز مرة واحدة فقط.
+Final Step:,الخطوة الأخيرة:
+This will generate your <strong>Production CSID</strong>.,سيؤدي هذا إلى إنشاء <strong>CSID الإنتاج</strong> الخاص بك.
+"Once generated, invoices will be sent to ZATCA live.",بمجرد الإنشاء، سيتم إرسال الفواتير إلى ZATCA مباشرة.
+Production CSID Generated,تم إنشاء CSID الإنتاج
+Your system is now live with ZATCA.,نظامك الآن متصل مباشرة مع ZATCA.
+Copy CSID,نسخ CSID
+Success,تم بنجاح
+ZATCA Phase-2 onboarding is now complete.,تم الآن إكمال إعداد المرحلة الثانية من ZATCA.
+Invoices will be sent automatically upon submission,سيتم إرسال الفواتير تلقائياً عند الاعتماد
+You can update settings from <strong>Company → ZATCA Settings</strong>,يمكنك تحديث الإعدادات من <strong>الشركة ← إعدادات ZATCA</strong>
+Run Test,تشغيل الاختبار
+Pending,قيد الانتظار
+Test Case,حالة الاختبار
+Run,تشغيل
+Reporting,الإبلاغ
+Clearance,التخليص
+Status,الحالة
+Running,جارٍ التشغيل
+Passed,ناجح
+Failed,فشل
+Simplified Invoice,فاتورة مبسطة
+Standard Invoice,فاتورة ضريبية (عادية)
+Simplified Credit Note,إشعار دائن مبسط
+Standard Credit Note,إشعار دائن (عادي)
+Simplified Debit Note,إشعار مدين مبسط
+Standard Debit Note,إشعار مدين (عادي)
