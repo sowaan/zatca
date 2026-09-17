@@ -184,7 +184,6 @@ def update_company_address(
     building_number=None,
     city=None,
     pincode=None,
-    country="Saudi Arabia",
 ):
     """Create or update the company's ZATCA address.
 
@@ -227,8 +226,11 @@ def update_company_address(
         address.city = city
     if pincode is not None:
         address.pincode = pincode
-    if country and not address.country:
-        address.country = country
+
+    # Country on the address always follows the Company's country.
+    company_country = frappe.db.get_value("Company", company, "country")
+    if company_country:
+        address.country = company_country
 
     address.save(ignore_permissions=True)
     frappe.db.commit()
