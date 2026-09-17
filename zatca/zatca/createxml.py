@@ -10,6 +10,7 @@ from frappe.utils.data import  get_time
 import xml.etree.ElementTree as ET
 import json
 from zatca.zatca.country_code import country_code_mapping
+from zatca.zatca.xml_tax_data import item_wise_tax_json
 import xml.etree.ElementTree as ElementTree
 from decimal import Decimal, InvalidOperation
 
@@ -1390,7 +1391,7 @@ def get_tax_total_from_items(sales_invoice_doc):
             try:
                 total_tax = 0
                 for single_item in sales_invoice_doc.items : 
-                    item_tax_amount,tax_percent =  get_Tax_for_Item(sales_invoice_doc.taxes[0].item_wise_tax_detail,single_item.item_code)
+                    item_tax_amount,tax_percent =  get_Tax_for_Item(item_wise_tax_json(sales_invoice_doc),single_item.item_code)
                     total_tax = total_tax + (single_item.net_amount * (tax_percent/100))
                 return total_tax 
             except Exception as e:
@@ -1399,7 +1400,7 @@ def get_tax_total_from_items(sales_invoice_doc):
 def item_data(invoice,sales_invoice_doc):
     try:
         for single_item in sales_invoice_doc.items : 
-            item_tax_amount,item_tax_percentage =  get_Tax_for_Item(sales_invoice_doc.taxes[0].item_wise_tax_detail,single_item.item_code)
+            item_tax_amount,item_tax_percentage =  get_Tax_for_Item(item_wise_tax_json(sales_invoice_doc),single_item.item_code)
             cac_InvoiceLine = ET.SubElement(invoice, "cac:InvoiceLine")
             cbc_ID_10 = ET.SubElement(cac_InvoiceLine, "cbc:ID")
             cbc_ID_10.text = str(single_item.idx)

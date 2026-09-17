@@ -7,6 +7,7 @@ from frappe import _
 from zatca.zatca.xml_tax_data import (
     get_tax_for_item,
     get_exemption_reason_map,
+    item_wise_tax_json,
 )
 
 ITEM_TAX_TEMPLATE = "Item Tax Template"
@@ -824,7 +825,7 @@ def item_data_advance_invoice(invoice, sales_invoice_doc):
         # Add regular item lines
         for single_item in sales_invoice_doc.items:
             _item_tax_amount, item_tax_percentage = get_tax_for_item(
-                sales_invoice_doc.taxes[0].item_wise_tax_detail, single_item.item_code
+                item_wise_tax_json(sales_invoice_doc), single_item.item_code
             )
 
             # === Invoice Line ===

@@ -47,6 +47,46 @@ def get_exemption_reason_map():
         ),
     }
 
+def item_wise_tax_json(sales_invoice_doc):
+    """Return the first tax row's per-item tax breakdown as a JSON string
+    ``{item_code: [rate, amount]}`` — the shape ``get_tax_for_item`` expects — in
+    a way that works on both ERPNext v15 and v16.
+
+    v15 stores it as a JSON string on each Sales Taxes and Charges row
+    (``item_wise_tax_detail``). v16 dropped that field and moved the data to the
+    invoice's ``item_wise_tax_details`` child table (keyed by item/tax row name).
+    """
+    taxes = sales_invoice_doc.get("taxes") or []
+    if not taxes:
+        return "{}"
+    first_tax = taxes[0]
+
+    # v15: JSON string directly on the tax row (missing on v16, so .get() is safe).
+    legacy = first_tax.get("item_wise_tax_detail")
+    if legacy:
+        return legacy
+
+    # v16: rebuild from the Item Wise Tax Detail child table on the invoice.
+    detail_rows = sales_invoice_doc.get("item_wise_tax_details") or []
+    if not detail_rows:
+        return "{}"
+    item_code_by_row = {it.name: it.item_code for it in sales_invoice_doc.get("items") or []}
+    result = {}
+    for row in detail_rows:
+        if row.get("tax_row") and row.get("tax_row") != first_tax.name:
+            continue
+        item_code = item_code_by_row.get(row.get("item_row"))
+        if not item_code:
+            continue
+        rate = row.get("rate") or 0
+        amount = row.get("amount") or 0
+        if item_code in result:
+            result[item_code][1] += amount
+        else:
+            result[item_code] = [rate, amount]
+    return json.dumps(result)
+
+
 def get_tax_for_item(full_string, item):
     """
     Extracts the tax amount and tax percentage for a specific item from a JSON-encoded string.
