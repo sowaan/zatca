@@ -599,6 +599,12 @@ frappe.pages['zatca-wizard'].on_page_load = function (wrapper) {
 					reqd: 1,
 				},
 				{
+					fieldname: "cr_number",
+					label: __("Commercial Registration No (CR)"),
+					fieldtype: "Data",
+					reqd: 1,
+				},
+				{
 					fieldname: "address_line1",
 					label: __("Address Line 1"),
 					fieldtype: "Data",
@@ -1324,6 +1330,7 @@ frappe.pages['zatca-wizard'].on_page_load = function (wrapper) {
 			// All of these are required to build a ZATCA-compliant invoice.
 			const required_fields = [
 				["vat_number", __("VAT Registration No is required.")],
+				["cr_number", __("Commercial Registration No (CR) is required.")],
 				["address_line1", __("Address Line 1 is required.")],
 				["address_line2", __("Address Line 2 is required.")],
 				["building", __("Building Number is required.")],
@@ -1342,6 +1349,21 @@ frappe.pages['zatca-wizard'].on_page_load = function (wrapper) {
 			if (has_missing) {
 				return;
 			}
+
+			// ZATCA format rules: building number must be 4 digits (BR-KSA-37),
+			// postal/ZIP code must be 5 digits (BR-KSA-66).
+			let has_format_error = false;
+			if (!/^\d{4}$/.test(values.building || "")) {
+				showFieldError(current_dialog, "building", __("Building Number must be exactly 4 digits."));
+				has_format_error = true;
+			}
+			if (!/^\d{5}$/.test(values.zip || "")) {
+				showFieldError(current_dialog, "zip", __("ZIP Code must be exactly 5 digits."));
+				has_format_error = true;
+			}
+			if (has_format_error) {
+				return;
+			}
 			frappe.call({
 				method: "frappe.client.set_value",
 				args: {
@@ -1349,7 +1371,7 @@ frappe.pages['zatca-wizard'].on_page_load = function (wrapper) {
 					name: selected_company,  // Ensure 'selected_company' has the current company
 					fieldname: {
 						"tax_id": values.vat_number,  // Save VAT registration number back to Company
-						"custom_company_registration": values.vat_number,  // Save VAT into CR Number too
+						"custom_company_registration": values.cr_number,  // Save the Commercial Registration number
 						"custom_zatca__location_for_csr_configuratoin": values.city,  // Save city
 						"custom_zatca__company_category_for_csr_configuration": values.business_category  // Save business category
 					},
@@ -1515,6 +1537,10 @@ function load_company_related_data(company, dialog, overwrite = false) {
 
 			if (overwrite || !dialog.get_value("vat_number")) {
 				dialog.set_value("vat_number", c.tax_id || "");
+			}
+
+			if (overwrite || !dialog.get_value("cr_number")) {
+				dialog.set_value("cr_number", c.custom_company_registration || "");
 			}
 		},
 	});
