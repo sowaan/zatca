@@ -174,3 +174,62 @@ def wizard_button(company_abbr, button, pos=0, machine=None):
 
     except Exception as e:
         frappe.throw(_(f"Error in wizard_button: {str(e)}"))
+
+
+@frappe.whitelist()
+def update_company_address(
+    company,
+    address_line1=None,
+    address_line2=None,
+    building_number=None,
+    city=None,
+    pincode=None,
+    country="Saudi Arabia",
+):
+    """Create or update the company's ZATCA address.
+
+    ZATCA needs a company Address (is_your_company_address = 1) linked to the
+    Company, carrying the fields used to build the invoice XML. Reuse the existing
+    company address if there is one, otherwise reuse any address linked to the
+    company, otherwise create a fresh one.
+    """
+    linked = frappe.get_all(
+        "Address",
+        filters=[
+            ["Dynamic Link", "link_doctype", "=", "Company"],
+            ["Dynamic Link", "link_name", "=", company],
+        ],
+        pluck="name",
+    )
+
+    address = None
+    for name in linked:
+        doc = frappe.get_doc("Address", name)
+        if doc.is_your_company_address:
+            address = doc
+            break
+    if not address and linked:
+        address = frappe.get_doc("Address", linked[0])
+    if not address:
+        address = frappe.new_doc("Address")
+        address.address_title = company
+        address.address_type = "Billing"
+        address.append("links", {"link_doctype": "Company", "link_name": company})
+
+    address.is_your_company_address = 1
+    if address_line1 is not None:
+        address.address_line1 = address_line1
+    if address_line2 is not None:
+        address.address_line2 = address_line2
+    if building_number is not None:
+        address.custom_building_number = building_number
+    if city is not None:
+        address.city = city
+    if pincode is not None:
+        address.pincode = pincode
+    if country and not address.country:
+        address.country = country
+
+    address.save(ignore_permissions=True)
+    frappe.db.commit()
+    return address.name

@@ -596,15 +596,29 @@ frappe.pages['zatca-wizard'].on_page_load = function (wrapper) {
 					fieldname: "vat_number",
 					label: __("VAT Registration No"),
 					fieldtype: "Data",
+					reqd: 1,
+				},
+				{
+					fieldname: "address_line1",
+					label: __("Address Line 1"),
+					fieldtype: "Data",
+					reqd: 1,
+				},
+				{
+					fieldname: "address_line2",
+					label: __("Address Line 2"),
+					fieldtype: "Data",
+					reqd: 1,
 				},
 				{
 					fieldname: "building",
 					label: __("Building Number"),
 					fieldtype: "Data",
 					read_only: 0,
+					reqd: 1,
 				},
-				{ fieldname: "city", label: __("City"), fieldtype: "Data" },
-				{ fieldname: "zip", label: __("ZIP Code"), fieldtype: "Data" },
+				{ fieldname: "city", label: __("City"), fieldtype: "Data", reqd: 1 },
+				{ fieldname: "zip", label: __("ZIP Code"), fieldtype: "Data", reqd: 1 },
 				{
 					fieldname: "business_category",
 					label: __("Select Business Category"),
@@ -1307,17 +1321,25 @@ frappe.pages['zatca-wizard'].on_page_load = function (wrapper) {
 			if (savedData) {
 				current_dialog.set_values(savedData);
 			}
-			clearFieldErrors(current_dialog, ["vat_number", "city", "business_category"]);
-			if (!values.vat_number || !values.city || !values.business_category) {
-				if (!values.vat_number) {
-					showFieldError(current_dialog, "vat_number", __("VAT Registration No is required."));
+			// All of these are required to build a ZATCA-compliant invoice.
+			const required_fields = [
+				["vat_number", __("VAT Registration No is required.")],
+				["address_line1", __("Address Line 1 is required.")],
+				["address_line2", __("Address Line 2 is required.")],
+				["building", __("Building Number is required.")],
+				["city", __("City is required.")],
+				["zip", __("ZIP Code is required.")],
+				["business_category", __("Please select a business category.")],
+			];
+			clearFieldErrors(current_dialog, required_fields.map((f) => f[0]));
+			let has_missing = false;
+			required_fields.forEach(([field, message]) => {
+				if (!values[field]) {
+					showFieldError(current_dialog, field, message);
+					has_missing = true;
 				}
-				if (!values.city) {
-					showFieldError(current_dialog, "city", __("City is required."));
-				}
-				if (!values.business_category) {
-					showFieldError(current_dialog, "business_category", __("Please select a business category."));
-				}
+			});
+			if (has_missing) {
 				return;
 			}
 			frappe.call({
@@ -1341,6 +1363,23 @@ frappe.pages['zatca-wizard'].on_page_load = function (wrapper) {
 				}
 			});
 
+			// Create/update the company Address ZATCA needs for the invoice.
+			frappe.call({
+				method: "zatca.zatca.wizardbutton.update_company_address",
+				args: {
+					company: selected_company,
+					address_line1: values.address_line1,
+					address_line2: values.address_line2,
+					building_number: values.building,
+					city: values.city,
+					pincode: values.zip,
+				},
+				callback: function (r) {
+					if (!r || !r.message) {
+						frappe.msgprint(__("⚠️ Failed to save the company address. Please try again."));
+					}
+				}
+			});
 
 			generate_csr_config(current_dialog.get_values(true));
 		}
@@ -1484,6 +1523,8 @@ function load_company_related_data(company, dialog, overwrite = false) {
 				["Dynamic Link", "link_name", "=", company],
 			],
 			fields: [
+				"address_line1",
+				"address_line2",
 				"custom_building_number",
 				"city",
 				"pincode",
@@ -1495,6 +1536,12 @@ function load_company_related_data(company, dialog, overwrite = false) {
 
 			const addr = res.message[0];
 
+			if (overwrite || !dialog.get_value("address_line1")) {
+				dialog.set_value("address_line1", addr.address_line1 || "");
+			}
+			if (overwrite || !dialog.get_value("address_line2")) {
+				dialog.set_value("address_line2", addr.address_line2 || "");
+			}
 			if (overwrite || !dialog.get_value("building")) {
 				dialog.set_value("building", addr.custom_building_number || "");
 			}
