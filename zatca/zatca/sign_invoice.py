@@ -1023,7 +1023,7 @@ def reporting_API(
         )
         file.save(ignore_permissions=True)
         sales_invoice_doc.db_set("custom_ksa_einvoicing_xml", file.file_url)
-        if sales_invoice_doc.hasattr("custom_zatca_pos_name") and sales_invoice_doc.custom_zatca_pos_name:
+        if hasattr(sales_invoice_doc, "custom_zatca_pos_name") and sales_invoice_doc.custom_zatca_pos_name:
             zatca_settings = frappe.get_doc(
                 "ZATCA Multiple Setting", sales_invoice_doc.custom_zatca_pos_name
             )
@@ -1183,7 +1183,7 @@ def reporting_API(
                     )
 
                     # Update PIH
-                    if sales_invoice_doc.hasattr("custom_zatca_pos_name") and sales_invoice_doc.custom_zatca_pos_name:
+                    if hasattr(sales_invoice_doc, "custom_zatca_pos_name") and sales_invoice_doc.custom_zatca_pos_name:
                         zatca_settings = frappe.get_doc(
                             "ZATCA Multiple Setting", sales_invoice_doc.custom_zatca_pos_name
                         )
@@ -1275,7 +1275,7 @@ def reporting_API(
 
                     # company_doc.custom_pih = encoded_hash
                     # company_doc.save(ignore_permissions=True)
-                    if sales_invoice_doc.hasattr("custom_zatca_pos_name") and sales_invoice_doc.custom_zatca_pos_name:
+                    if hasattr(sales_invoice_doc, "custom_zatca_pos_name") and sales_invoice_doc.custom_zatca_pos_name:
                         if zatca_settings.custom__use_company_certificate__keys != 1:
                             if (
                                 zatca_settings.custom_send_pos_invoices_to_zatca_on_background

@@ -779,7 +779,7 @@ frappe.pages['zatca-wizard'].on_page_load = function (wrapper) {
 			font-size:13px;
 		">
 			<strong>${__("OTP Required")}</strong><br>
-			${__("Enter the OTP received from ZATCA portal. This OTP can be used only once.")}
+			${__("Enter the 6 digits OTP received from ZATCA portal (for simulation and Production environment only). This OTP can be used only once.")}
 		</div>
 	`
 				}
