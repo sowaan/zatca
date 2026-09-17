@@ -1381,6 +1381,12 @@ frappe.pages['zatca-wizard'].on_page_load = function (wrapper) {
 				}
 			});
 
+			// Create the KSA VAT tax templates + accounts for this company.
+			frappe.call({
+				method: "zatca.zatca.wizardbutton.setup_ksa_vat",
+				args: { company: selected_company },
+			});
+
 			generate_csr_config(current_dialog.get_values(true));
 		}
 

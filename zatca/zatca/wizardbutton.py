@@ -235,3 +235,52 @@ def update_company_address(
     address.save(ignore_permissions=True)
     frappe.db.commit()
     return address.name
+
+
+@frappe.whitelist()
+def setup_ksa_vat(company):
+    """Create the KSA VAT tax templates and their Chart of Accounts accounts.
+
+    Builds Sales *and* Purchase Taxes and Charges Templates for the standard
+    15%, zero-rated (0%) and exempt cases, each with its tax account created
+    under Duties and Taxes, and makes the 15% Sales template the company default
+    (only when no default is set yet). Reuses ERPNext's own idempotent helper, so
+    it is safe to run repeatedly.
+    """
+    from erpnext.setup.setup_wizard.operations.taxes_setup import (
+        make_taxes_and_charges_template,
+    )
+
+    templates = [
+        ("KSA VAT 15%", "VAT 15%", 15.0),
+        ("KSA VAT 0% (Zero Rated)", "VAT Zero", 0.0),
+        ("KSA VAT Exempt", "VAT Exempted", 0.0),
+    ]
+    for doctype in (
+        "Sales Taxes and Charges Template",
+        "Purchase Taxes and Charges Template",
+    ):
+        for title, account_name, rate in templates:
+            make_taxes_and_charges_template(
+                company,
+                doctype,
+                {
+                    "title": title,
+                    "taxes": [
+                        {"account_head": {"account_name": account_name, "tax_rate": rate}}
+                    ],
+                },
+            )
+
+    # Make the 15% Sales template the company default, if none is set yet.
+    standard = frappe.db.exists(
+        "Sales Taxes and Charges Template", {"company": company, "title": "KSA VAT 15%"}
+    )
+    has_default = frappe.db.exists(
+        "Sales Taxes and Charges Template", {"company": company, "is_default": 1}
+    )
+    if standard and not has_default:
+        frappe.db.set_value("Sales Taxes and Charges Template", standard, "is_default", 1)
+
+    frappe.db.commit()
+    return True
