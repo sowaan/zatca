@@ -7,6 +7,7 @@ import lxml.etree as MyTree
 from datetime import datetime
 import frappe
 from frappe import _
+from zatca.zatca.response_format import format_zatca_response
 from zatca.zatca.createxml import (
     xml_tags,
     salesinvoice_data,
@@ -1134,7 +1135,7 @@ def reporting_API(
                                 "Error: The request you are sending to ZATCA is in incorrect format. "
                                 "Please report to system administrator. "
                                 f"Status code: {response.status_code}<br><br>"
-                                f"{response.text}"
+                                f"{format_zatca_response(response)}"
                             )
                         )
                     )
@@ -1171,7 +1172,7 @@ def reporting_API(
                                 "Your access token may be expired or not valid. "
                                 "Please contact your system administrator. "
                                 f"Status code: {response.status_code}<br><br>"
-                                f"{response.text}"
+                                f"{format_zatca_response(response)}"
                             )
                         )
                     )
@@ -1179,7 +1180,7 @@ def reporting_API(
                     msg = "SUCCESS: <br><br>"
                     msg += (
                         f"Status Code: {response.status_code}<br><br> "
-                        f"ZATCA Response: {response.text}<br><br>"
+                        f"ZATCA Response:<br>{format_zatca_response(response)}<br><br>"
                     )
 
                     # Update PIH
@@ -1248,7 +1249,7 @@ def reporting_API(
                                 "Error: ZATCA server busy or not responding."
                                 " Try after sometime or contact your system administrator. "
                                 f"Status code: {response.status_code}<br><br>"
-                                f"{response.text}"
+                                f"{format_zatca_response(response)}"
                             )
                         )
                     )
@@ -1265,7 +1266,7 @@ def reporting_API(
                     )
                     msg += (
                         f"Status Code: {response.status_code}<br><br> "
-                        f"ZATCA Response: {response.text}<br><br>"
+                        f"ZATCA Response:<br>{format_zatca_response(response)}<br><br>"
                     )
                     company_name = sales_invoice_doc.company
                     # settings = frappe.get_doc("Company", company_name)
