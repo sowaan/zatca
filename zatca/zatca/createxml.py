@@ -710,16 +710,26 @@ def customer_data(invoice, sales_invoice_doc):
         country_dict = country_code_mapping()
         address = None
         if customer_doc.custom_b2c != 1:
-            if int(frappe.__version__.split(".", maxsplit=1)[0]) == 13:
-                if sales_invoice_doc.customer_address:
-                    address = frappe.get_doc(
-                        "Address", sales_invoice_doc.customer_address
-                    )
-            else:
-                if customer_doc.customer_primary_address:
-                    address = frappe.get_doc(
-                        "Address", customer_doc.customer_primary_address
-                    )
+            # Resolve the buyer address from the invoice, the customer's primary
+            # address, or any address linked to the customer (a customer may have a
+            # linked address without it being flagged as the primary one).
+            address_name = (
+                sales_invoice_doc.customer_address or customer_doc.customer_primary_address
+            )
+            if not address_name:
+                linked = frappe.get_all(
+                    "Address",
+                    filters=[
+                        ["Dynamic Link", "link_doctype", "=", "Customer"],
+                        ["Dynamic Link", "link_name", "=", sales_invoice_doc.customer],
+                    ],
+                    pluck="name",
+                    limit=1,
+                )
+                address_name = linked[0] if linked else None
+
+            if address_name:
+                address = frappe.get_doc("Address", address_name)
 
             if not address:
                 frappe.throw(_("Customer address is mandatory for non-B2C customers."))
