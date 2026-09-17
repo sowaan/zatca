@@ -83,7 +83,11 @@ app_include_js = "/assets/zatca/js/zatca_banner.js"
 # ------------
 
 # before_install = "zatca.install.before_install"
-# after_install = "zatca.install.after_install"
+after_install = "zatca.zatca.ksa_print_formats.installer.after_install"
+
+# Re-assert the bundled KSA print formats / Arabic in-words field on every migrate
+# (idempotent; defers to the standalone ksa_print_formats app when it is present).
+after_migrate = "zatca.zatca.ksa_print_formats.installer.after_migrate"
 
 # Uninstallation
 # ------------
@@ -230,8 +234,11 @@ scheduler_events = {
 # 	"Logging DocType Name": 30  # days to retain logs
 # }
 
+_ksa_in_words_hook = "zatca.zatca.ksa_print_formats.installer.set_in_words_arabic"
+
 doc_events = {
     "Sales Invoice": {
+        "validate": _ksa_in_words_hook,
         "before_cancel": "zatca.zatca.validations.before_save",
         "after_insert": "zatca.zatca.validations.duplicating_invoice",
         "on_submit": "zatca.zatca.sign_invoice.zatca_Background_on_submit"
@@ -244,6 +251,14 @@ doc_events = {
     #     "before_save": "zatca.zatca.address.before_save"
     # }
 }
+
+# Populate the Arabic amount-in-words field on every other in-words DocType too.
+for _dt in (
+    "POS Invoice", "Purchase Invoice", "Sales Order", "Purchase Order",
+    "Quotation", "Supplier Quotation", "Delivery Note", "Purchase Receipt",
+    "Subcontracting Receipt", "Payment Entry",
+):
+    doc_events.setdefault(_dt, {})["validate"] = _ksa_in_words_hook
 
 doctype_js = {
     "Sales Invoice" : "public/js/our_sales_invoice.js",
