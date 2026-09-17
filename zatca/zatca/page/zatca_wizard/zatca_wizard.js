@@ -1327,6 +1327,7 @@ frappe.pages['zatca-wizard'].on_page_load = function (wrapper) {
 					name: selected_company,  // Ensure 'selected_company' has the current company
 					fieldname: {
 						"tax_id": values.vat_number,  // Save VAT registration number back to Company
+						"custom_company_registration": values.vat_number,  // Save VAT into CR Number too
 						"custom_zatca__location_for_csr_configuratoin": values.city,  // Save city
 						"custom_zatca__company_category_for_csr_configuration": values.business_category  // Save business category
 					},
