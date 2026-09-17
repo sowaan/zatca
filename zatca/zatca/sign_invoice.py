@@ -1329,10 +1329,14 @@ def reporting_API(
 
                     error_Log()
                 
-            except (ValueError, TypeError, KeyError, frappe.ValidationError) as e:
+            except frappe.ValidationError:
+                raise  # already a user-facing message (e.g. the formatted ZATCA response)
+            except (ValueError, TypeError, KeyError) as e:
                 frappe.throw(_(f"Error in reporting API-2 original reporting: {str(e)}"))
 
-    except (ValueError, TypeError, KeyError, frappe.ValidationError) as e:
+    except frappe.ValidationError:
+        raise  # already a user-facing message (e.g. the formatted ZATCA response)
+    except (ValueError, TypeError, KeyError) as e:
         invoice_doc = frappe.get_doc("Sales Invoice", invoice_number)
         invoice_doc.custom_zatca_full_response = f"Error: {str(e)}"
         invoice_doc.save(ignore_permissions=True)  # or with permissions if needed
