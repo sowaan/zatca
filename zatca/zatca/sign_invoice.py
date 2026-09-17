@@ -1386,14 +1386,14 @@ def clearance_API(uuid1, encoded_hash, signed_xmlfile_name, invoice_number, sale
             invoice_doc.db_set('custom_uuid', "Not Submitted", commit=True, update_modified=True)
             invoice_doc.db_set('custom_zatca_status', "Not Submitted", commit=True, update_modified=True)
 
-            frappe.throw(f"Error: The request you are sending to Zatca is in incorrect format. Status code: {response.status_code}<br><br>{response.text}")
+            frappe.throw(f"Error: The request you are sending to Zatca is in incorrect format. Status code: {response.status_code}<br><br>{format_zatca_response(response)}")
 
         if response.status_code in (401, 403, 407, 451):
             invoice_doc = frappe.get_doc('Sales Invoice', invoice_number)
             invoice_doc.db_set('custom_uuid', "Not Submitted", commit=True, update_modified=True)
             invoice_doc.db_set('custom_zatca_status', "Not Submitted", commit=True, update_modified=True)
 
-            frappe.throw(f"Error: Zatca Authentication failed. Status code: {response.status_code}<br><br>{response.text}")
+            frappe.throw(f"Error: Zatca Authentication failed. Status code: {response.status_code}<br><br>{format_zatca_response(response)}")
 
         if response.status_code not in (200, 202):
             invoice_doc = frappe.get_doc('Sales Invoice', invoice_number)
@@ -1404,7 +1404,7 @@ def clearance_API(uuid1, encoded_hash, signed_xmlfile_name, invoice_number, sale
 
         if response.status_code in (200, 202):
             msg = "CLEARED WITH WARNINGS: <br><br>" if response.status_code == 202 else "SUCCESS: <br><br>"
-            msg += f"Status Code: {response.status_code}<br><br>Zatca Response: {response.text}<br><br>"
+            msg += f"Status Code: {response.status_code}<br><br>Zatca Response:<br>{format_zatca_response(response)}<br><br>"
             frappe.msgprint(msg)
 
             # Update PIH in the Company doctype without JSON formatting
@@ -1435,6 +1435,8 @@ def clearance_API(uuid1, encoded_hash, signed_xmlfile_name, invoice_number, sale
         else:
             error_Log()
 
+    except frappe.ValidationError:
+        raise  # already a user-facing message (e.g. the formatted ZATCA response)
     except Exception as e:
         frappe.throw("Error in clearance API: " + str(e))
 
@@ -1753,6 +1755,8 @@ def zatca_Call_compliance(invoice_number, company_abbr, compliance_type="0", any
         # Make the compliance API call
         compliance_api_call(uuid1, encoded_hash, signed_xmlfile_name, company_abbr)
 
+    except frappe.ValidationError:
+        raise  # already a user-facing message (e.g. the formatted ZATCA response)
     except Exception as e:
         frappe.log_error(title='Zatca invoice call failed', message=frappe.get_traceback())
         frappe.throw("Error in Zatca invoice call: " + str(e))
@@ -1802,6 +1806,8 @@ def zatca_Background(invoice_number):
 
         zatca_Call(invoice_number, "0", any_item_has_tax_template, company_abbr)
 
+    except frappe.ValidationError:
+        raise  # already a user-facing message (e.g. the formatted ZATCA response)
     except Exception as e:
         frappe.throw("Error in background call: " + str(e))
 
@@ -2066,5 +2072,7 @@ def zatca_Background_on_submit(doc, method=None):
         #     submit_to_zatca=submit_to_zatca
         # )
         
+    except frappe.ValidationError:
+        raise  # already a user-facing message (e.g. the formatted ZATCA response)
     except Exception as e:
         frappe.throw("Error in background call: " + str(e))
