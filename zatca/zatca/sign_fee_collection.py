@@ -77,6 +77,12 @@ def fee_doc_reference(invoice, fee_collection_doc, fee_collection_number):
             cac_InvoiceDocumentReference = ET.SubElement(cac_BillingReference, "cac:InvoiceDocumentReference")
             cbc_ID_billing = ET.SubElement(cac_InvoiceDocumentReference, "cbc:ID")
             cbc_ID_billing.text = fee_collection_doc.refund_against
+
+            # Reference date of the original Fee Collection (BT-26).
+            reference_invoice_date = getattr(fee_collection_doc, 'reference_invoice_date', None)
+            if reference_invoice_date:
+                cbc_IssueDate_billing = ET.SubElement(cac_InvoiceDocumentReference, "cbc:IssueDate")
+                cbc_IssueDate_billing.text = str(reference_invoice_date)
         
         # ICV (Invoice Counter Value) Reference
         cac_AdditionalDocumentReference = ET.SubElement(invoice, "cac:AdditionalDocumentReference")
@@ -190,10 +196,13 @@ def fee_delivery_And_PaymentMeans(invoice, fee_collection_doc, is_return):
         else:
             cbc_PaymentMeansCode.text = "10"  # Default to Cash
         
-        # Add cancellation note for returns
+        # ZATCA BR-KSA-17 requires the reason for issuing a credit note.
         if is_return == 1:
             cbc_InstructionNote = ET.SubElement(cac_PaymentMeans, "cbc:InstructionNote")
-            cbc_InstructionNote.text = "Cancellation"
+            cbc_InstructionNote.text = (
+                getattr(fee_collection_doc, 'reason_for_credit_note', None)
+                or "Cancellation"
+            )
         
         return invoice
     except Exception as e:
