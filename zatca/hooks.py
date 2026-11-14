@@ -85,6 +85,9 @@ app_include_js = "/assets/zatca/js/zatca_banner.js"
 # before_install = "zatca.install.before_install"
 after_install = "zatca.zatca.ksa_print_formats.installer.after_install"
 
+# Keep existing Custom Field names in line with fixtures so sync_fixtures doesn't re-insert them
+before_migrate = ["zatca.migrate.align_custom_field_names"]
+
 # Re-assert the bundled KSA print formats / Arabic in-words field on every migrate
 # (idempotent; defers to the standalone ksa_print_formats app when it is present).
 after_migrate = "zatca.zatca.ksa_print_formats.installer.after_migrate"
