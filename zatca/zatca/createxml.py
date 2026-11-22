@@ -1426,10 +1426,10 @@ def item_data(invoice,sales_invoice_doc):
             cbc_TaxAmount_3.text = str(abs(round(item_tax_percentage * single_item.net_amount / 100,2)))
             cbc_RoundingAmount = ET.SubElement(cac_TaxTotal_2, "cbc:RoundingAmount")
             cbc_RoundingAmount.set("currencyID", sales_invoice_doc.currency)
-            cbc_RoundingAmount.text=str(abs(round(single_item.amount + (item_tax_percentage * single_item.amount / 100),2)))
+            cbc_RoundingAmount.text = f"{abs(sales_invoice_doc.grand_total):.2f}"
             cac_Item = ET.SubElement(cac_InvoiceLine, "cac:Item")
             cbc_Name = ET.SubElement(cac_Item, "cbc:Name")
-            cbc_Name.text = single_item.item_code
+            cbc_Name.text = single_item.item_name
             cac_ClassifiedTaxCategory = ET.SubElement(cac_Item, "cac:ClassifiedTaxCategory")
             cbc_ID_11 = ET.SubElement(cac_ClassifiedTaxCategory, "cbc:ID")
             if sales_invoice_doc.custom_zatca_tax_category == "Standard":
@@ -1476,11 +1476,11 @@ def item_data_with_template(invoice, sales_invoice_doc):
             cbc_TaxAmount_3.text = str(abs(round(item_tax_percentage * single_item.amount / 100, 2)))
             cbc_RoundingAmount = ET.SubElement(cac_TaxTotal_2, "cbc:RoundingAmount")
             cbc_RoundingAmount.set("currencyID", sales_invoice_doc.currency)
-            cbc_RoundingAmount.text = str(abs(round(single_item.amount + (item_tax_percentage * single_item.amount / 100), 2)))
+            cbc_RoundingAmount.text = f"{abs(sales_invoice_doc.grand_total):.2f}"
             
             cac_Item = ET.SubElement(cac_InvoiceLine, "cac:Item")
             cbc_Name = ET.SubElement(cac_Item, "cbc:Name")
-            cbc_Name.text = single_item.item_code
+            cbc_Name.text = single_item.item_name
             
             cac_ClassifiedTaxCategory = ET.SubElement(cac_Item, "cac:ClassifiedTaxCategory")
             cbc_ID_11 = ET.SubElement(cac_ClassifiedTaxCategory, "cbc:ID")
